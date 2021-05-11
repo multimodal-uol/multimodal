@@ -1,0 +1,141 @@
+<form>
+  <label>2. Explore Newspapers</label>
+  <search id="base_search">
+    <query>
+$datasource$ | where  $news_outlet$ $user_query$ $user_filter$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="newspaper">Newspaper</choice>
+      <prefix>index=</prefix>
+      <default>newspaper</default>
+      <delimiter> </delimiter>
+    </input>
+    <input type="radio" token="user_query" searchWhenChanged="false">
+      <label>Source Type</label>
+      <choice value="text!=&quot;&quot;">Text</choice>
+      <choice value="image!=&quot;&quot;">Image</choice>
+      <choice value="| eval textimage = toString(text) + &quot;;&quot; + toString(image) |makemv delim=&quot;;&quot; textimage |mvexpand textimage| where textimage !=&quot;Null&quot;">Text &amp; Image</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <set token="showText">true</set>
+          <set token="showTextImage1">true</set>
+          <unset token="showTextImage2"></unset>
+          <unset token="showImage"></unset>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="showImage">true</set>
+          <set token="showTextImage2">true</set>
+          <unset token="showTextImage1"></unset>
+          <unset token="showText"></unset>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.textfield">textimage</set>
+          <set token="showTextImage">true</set>
+          <set token="showTextImage1">true</set>
+          <set token="showTextImage2">true</set>
+        </condition>
+      </change>
+      <default>text!=""</default>
+      <prefix>|where </prefix>
+    </input>
+    <input id="text_long" type="text" token="user_query">
+      <label>Query input (advanced  usage)</label>
+      <prefix>|where </prefix>
+    </input>
+    <input id="user_filter" type="text" token="user_filter">
+      <label>Apply Filter (advanced usage)</label>
+      <prefix> </prefix>
+      <default></default>
+    </input>
+    <input type="multiselect" token="news_outlet">
+      <label>Select a Newspaper</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>%</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>  
+     
+
+  <p>
+    <hr/>
+ <h2>
+              <b>Search String</b>
+            </h2>
+     $datasource$ $news_outlet$ $user_query$ $user_filter$
+      </p>
+   <hr/>
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Total News</title>
+      <single>
+        <search base="base_search">
+          <query>
+| stats count("text")
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Number of News By Day</title>
+      <chart>
+        <search base="base_search">
+          <query>|where text!=""| timechart span=24h count |table _time count|rename count as "News Count"| sort - "News Count" limit=30</query>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Newspaper  Data</title>
+      <table>
+        <title>Latest News on the Top</title>
+        <search>
+          <query>$datasource$ | where  $news_outlet$ $user_query$ $user_filter$|rename date_published as "Data Published", news_outlet as Publisher, "authors{}" as Authors, "keywords{}" as Keywords, summary as Summary, text as News, "title{}" as Title | sort - "Data Published"| table "Data Published", Title,Authors, Publisher, Keywords, Summary, News</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

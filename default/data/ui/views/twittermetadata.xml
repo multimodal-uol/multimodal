@@ -1,0 +1,93 @@
+<form>
+  <label>6. Twitter Metadata Analytics</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="field1">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="text" token="master_search">
+      <label>INPUT</label>
+      <default>index=twitter_text</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Who has posted the most tweets</title>
+      <chart>
+        <search>
+          <query>$master_search$ | top screen_name</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Average number of retweets, likes and replies by date</title>
+      <chart>
+        <search>
+          <query>$master_search$| timechart span=24h  avg(retweets) as Retweets avg(likes) as Likes avg(replies) as Replies</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Number of times tweet is an reply to, tweet is replied to by date</title>
+      <chart>
+        <search>
+          <query>$master_search$| timechart span=24h  count(eval(is_reply_to="True")) as "Tweet is an reply to"  count(eval(is_replied="True")) as "Tweet is replied to"</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>If a media attached to tweets by date</title>
+      <chart>
+        <search>
+          <query>$master_search$|  timechart span=24h   count(eval(has_media="False")) as "No Media"  count(eval(has_media="True")) as "Media"</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Top Hashtags</title>
+      <chart>
+        <search>
+          <query>$master_search$|where hashtags!="[]" |replace "[u'*" with "*"| replace "*']" with "*"|replace "u'*'" with "*"| mvexpand hashtags|top  hashtags</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

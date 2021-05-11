@@ -1,0 +1,48 @@
+<dashboard hideEdit="false">
+  <label>Welcome</label>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Website Uptime: Everyday 9:30 AM to 10:30 PM UK Time</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+
+
+  <row>
+    <panel>
+      <html>  
+    <h1 class="w3-center w3-padding-64">
+          <span class="w3-tag w3-wide">Multimodal Analytics Platform</span>
+        </h1>
+    <p>The project collects data from Twitter, several UK newspapers and COVID websites (WHO, NHS etc), analyzes them to create interactive reports. 
+    <h3>
+         <b style="color:red;">The platform is very easy to use. For Explore pages (#2) just click submit to see results with default selections. For other pages just select "Text" radio button and click submit.</b>
+        </h3>
+        </p>
+    
+      <p>Data from newspapers are collected automatically at a scheduled interval from a list of newspapers and COVID websites. Start exploring data and create reports on newspaper and COVID websites without data generation. Reports can be generated in any order. You can combine data from several sources, include or exclude images and videos, apply filters to create reports. </p>
+    
+    <p> Users explicitly generate data from Twitter using keyword searches and user profile names. To start with Twiiter analysis, generate some data through the <i>Generate Twitter Data</i> page. Once data is generated, copy the search id to create reports later. To produce comprehensive reports on a particular topic, generate data with multiple Twitter user names or keywords. Each time data is collected a new search id is created. Investigate raw data in the search_id using the <i>Explore Tweets</i> dashboard. Multiple search_ids can be combined together to pull the reports. Reports can be generated in any order, but a suggestive order for reports are mentioned for convenience. </p>
+   
+</html>
+    </panel>
+  </row>
+</dashboard>

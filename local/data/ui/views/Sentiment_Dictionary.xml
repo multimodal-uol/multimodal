@@ -1,0 +1,262 @@
+<form>
+  <label>5. Sentiment (Word)</label>
+  <search id="base_search">
+    <query>
+      | makeresults
+      | fields - _time
+      | eval text= "$word$"
+    </query>
+  </search>
+  <search id="sentiment" base="base_search">
+    <query>
+      | vader textfield=text full_output=t
+      | eval sentiment = round(sentiment, 3)
+    </query>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="text" token="word" searchWhenChanged="false">
+      <label>Word / Phrase / Sentence</label>
+      <!--change-->
+      <!--eval token="txtValue">replace( $word$,"\"","")</eval>
+      </change-->
+    </input>
+    <input type="dropdown" token="neutral" searchWhenChanged="true">
+      <label>Neutral Zone Size</label>
+      <choice value="0.01">Small</choice>
+      <choice value="0.05">Medium</choice>
+      <choice value="0.1">Large</choice>
+      <default>0.05</default>
+      <initialValue>0.05</initialValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Sentiment</title>
+      <chart>
+        <search base="sentiment">
+          <query>
+            | table sentiment
+          </query>
+        </search>
+        <option name="charting.chart">radialGauge</option>
+        <option name="charting.chart.rangeValues">[-1,-$neutral$,$neutral$,1]</option>
+        <option name="charting.chart.style">minimal</option>
+        <option name="charting.gaugeColors">["0xdc4e41","0x006d9c","0x53a051"]</option>
+      </chart>
+    </panel>
+    <panel>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="sentiment">
+          <query>
+            | table sentiment
+            | eval sentiment = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+            | eval color = case(sentiment=="Positive","#5D9C1E", sentiment=="Negative","#9C1E1E", sentiment=="Neutral", "#1E5D9C")
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">133</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">field_value</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">0</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="sentiment">
+          <query>
+            | table sentiment
+            | eval color = case(sentiment&gt;$neutral$,"#5D9C1E",sentiment&lt;-$neutral$,"#9C1E1E",true(),"#1E5D9C")
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">133</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">field_value</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">3</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+    </panel>
+    <panel>
+      <title>(+)</title>
+      <chart>
+        <search base="sentiment">
+          <query>
+            | table sentiment_neutral,sentiment_negative,sentiment_positive
+            | rename sentiment_neutral as Neutral, sentiment_negative as Negative, sentiment_positive as Positive
+            | transpose header_field=category
+            | rename "row 1" as probability
+          </query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Positive":0x5D9C1E,"Negative":0x9C1E1E,"Neutral":0x1E5D9C}</option>
+        <option name="height">270</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <set token="sentiment_label">$click.value$</set>
+          <set token="specific_textfield">*</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <viz type="wordcloud_app.wordcloud">
+        <title>Positive Words</title>
+        <search base="pos">
+          <query>            
+            | where category="Positive"
+            | stats count by words
+            | sort -count
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#3fc77a</option>
+        <option name="wordcloud_app.wordcloud.minColor">#d93f3c</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">3</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+      </viz>
+    </panel>
+    <panel>
+      <viz type="wordcloud_app.wordcloud">
+        <title>Neutral Words</title>
+        <search base="pos">
+          <query>            
+            | where category="Neutral"
+            | stats count by words
+            | sort -count
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#3fc77a</option>
+        <option name="wordcloud_app.wordcloud.minColor">#d93f3c</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">3</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+      </viz>
+    </panel>
+    <panel>
+      <viz type="wordcloud_app.wordcloud">
+        <title>Negative Words</title>
+        <search base="pos">
+          <query>            
+            | where category="Negative"
+            | stats count by words
+            | sort -count
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#3fc77a</option>
+        <option name="wordcloud_app.wordcloud.minColor">#d93f3c</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">3</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Part of Speech</title>
+        <search id="pos" base="base_search">
+          <query>
+            | cleantext textfield=text base_type=lemma_pos
+            | rename tag as pos, text as words
+            | eval zip=mvzip (words,pos)
+            | mvexpand zip
+            | eval words=mvindex(split(zip,","),0), pos=mvindex(split(zip,","),1)
+            | fields words, pos
+            | vader textfield=words full_output=f
+            | eval sentiment = round(sentiment, 3)
+            | eval category = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+            | rename sentiment as "sentiment score"
+            | fillnull value=NULL
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <format type="color" field="category">
+          <colorPalette type="map">{"Negative":#ffb3b3,"Neutral":#ccf2ff,"Positive":#c6ffb3}</colorPalette>
+        </format>
+        <format type="color" field="sentiment score">
+          <colorPalette type="list">[#ffb3b3,#ccf2ff,#c6ffb3]</colorPalette>
+          <scale type="threshold">-0.05,0.05</scale>
+        </format>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>Named Entities</title>
+        <search base="base_search">
+          <query>
+            | mycommand textfield=text
+            | eval zip=mvzip (text,tag)
+            | mvexpand zip
+            | eval "Named Entity"=mvindex(split(zip,","),0), Tag=mvindex(split(zip,","),1)
+            | fields "Named Entity", Tag
+            | fillnull value=NULL
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Word Sentiment for Each Word in the Record</title>
+        <search base="base_search">
+          <query>eval origText=text | cleantext textfield=text  | nomv text |
+          rex mode=sed field=text "s/\n/ /g"| wordsentiment text
+           | table  Negative, Neutral, Positive, "Overall Score", Text, Sentiment
+           | eval Sentiment = round(Sentiment, 3)
+            | eval Category = case(Sentiment&gt;$neutral$,"Positive",Sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <format type="color" field="Category">
+          <colorPalette type="map">{"Negative":#ffb3b3,"Neutral":#ccf2ff,"Positive":#c6ffb3}</colorPalette>
+        </format>
+        <format type="color" field="Sentiment">
+          <colorPalette type="list">[#ffb3b3,#ccf2ff,#c6ffb3]</colorPalette>
+          <scale type="threshold">-0.05,0.05</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .input-text {
+          width: 1000px !important;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,366 @@
+<form>
+  <label>2. Expore Tweets</label>
+  <search id="base_search">
+    <query>
+$datasource$ $user_query$ $search_id$ $user_filter$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search id="media_search">
+    <query>
+ $datasource$ $textsource$  $search_id$ $text_match$ $user_query$ | eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S")  | table *
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="twitter">Twitter</choice>
+      <prefix>index=</prefix>
+      <default>twitter</default>
+      <delimiter> </delimiter>
+    </input>
+    <input type="radio" token="user_query" searchWhenChanged="false">
+      <label>Source Type</label>
+      <choice value="|where text!=&quot;&quot;">Text</choice>
+      <choice value="| rename &quot;img_urls&quot; as URL | where isnotnull(URL )">Image</choice>
+      <choice value="| eval textimage = toString(text) + &quot;;&quot; + toString(image) |makemv delim=&quot;;&quot; textimage |mvexpand textimage| where textimage !=&quot;Null&quot;">Text &amp; Image</choice>
+      <choice value="| rename &quot;video_urls&quot; as URL | where isnotnull(URL )">Video</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <set token="showText">true</set>
+          <set token="showTextImage1">true</set>
+          <unset token="showTextImage2"></unset>
+          <unset token="showImage"></unset>
+          <set token="form.image_search_id"></set>
+          <unset token="image_search_id"></unset>
+          <set token="textsource">source="/opt/twitterdata/tweets/*"</set>
+          <unset token="imagesource"></unset>
+          <unset token="showVideo"></unset>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="showImage">true</set>
+          <set token="showTextImage2">true</set>
+          <unset token="showTextImage1"></unset>
+          <unset token="showText"></unset>
+          <unset token="showVideo"></unset>
+          <set token="form.search_id"></set>
+          <unset token="search_id"></unset>
+          <set token="imagesource">source="/opt/twitterdata/imagedata/*"</set>
+          <unset token="textsource"></unset>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.textfield">textimage</set>
+          <set token="showTextImage">true</set>
+          <set token="showTextImage1">true</set>
+          <set token="showTextImage2">true</set>
+          <set token="textsource">source="/opt/twitterdata/tweets/*"</set>
+          <set token="imagesource">source="/opt/twitterdata/imagedata/*"</set>
+        </condition>
+        <condition label="Video">
+          <set token="form.textfield">video</set>
+          <set token="showVideo">true</set>
+          <unset token="showImage"></unset>
+          <unset token="showTextImage2"></unset>
+          <unset token="showTextImage1"></unset>
+          <unset token="showText"></unset>
+          <set token="form.search_id"></set>
+          <unset token="search_id"></unset>
+          <set token="videosource">source="/opt/twitterdata/videodata/*"</set>
+          <unset token="textsource"></unset>
+        </condition>
+      </change>
+      <default>|where text!=""</default>
+    </input>
+    <input id="search_id" type="text" token="search_id" depends="$showTextImage1$">
+      <label>Search ID  One or multiple IDs, comma separated and each ID within double quotes e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs).</label>
+      <prefix>|where search_id in (</prefix>
+      <suffix>)</suffix>
+      <default>"liverpoolSPACEandSPACEgig75819"</default>
+    </input>
+    <input id="image_search_id" type="text" token="image_search_id" depends="$showTextImage2$">
+      <label>Twitter Image Search IDs. (One ID without quote)</label>
+      <prefix>|where image_search_id="</prefix>
+      <default></default>
+      <initialValue>*</initialValue>
+      <suffix>"</suffix>
+      <change>
+        <eval token="image_search_id_replaced">replace( $image_search_id$,"\"","")</eval>
+      </change>
+    </input>
+    <input id="video_search_id" type="text" token="video_search_id" depends="$showVideo$">
+      <label>Twitter Video Search IDs. (One ID without quote)</label>
+      <prefix>|where video_search_id="</prefix>
+      <default></default>
+      <initialValue>*</initialValue>
+      <suffix>"</suffix>
+      <change>
+        <eval token="image_search_id_replaced">replace( $image_search_id$,"\"","")</eval>
+      </change>
+    </input>
+    <input type="text" token="text_match" depends="$showTextImage1$">
+      <label>Match Text</label>
+      <prefix>|where like(text,"%</prefix>
+      <suffix>%") </suffix>
+      <initialValue>%</initialValue>
+    </input>
+    <input id="user_filter" type="text" token="user_filter" depends="$showTextImage1$">
+      <label>Apply Filter (advanced usage)</label>
+      <prefix> </prefix>
+      <default></default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Click on submit to see results with default selection.</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>  
+      <h1>Apply Filters</h1>
+    <p>
+      <b>Tweets contain <i>coronavirus</i> as a word</b>
+          <br/> 
+ |where like(text,"%coronavirus%") <br/> 
+
+<b>Tweets contain <i>coronavirus</i>  OR <i>COVID</i> as words</b>
+          <br/> 
+ |where like(text,"%coronavirus%") OR like(text,"%COVID%")  <br/> 
+
+<b>Tweets contain <i>coronavirus</i>  AND <i>COVID</i> as words</b>
+          <br/> 
+|where like(text,"%coronavirus%") AND like(text,"%COVID%") <br/> 
+
+<b>Tweets does not contain <i> coronavirus</i>  as a words</b>
+          <br/> 
+|where !like(text,"%coronavirus%") <br/> 
+
+
+</p>
+
+<row>
+  <p>
+    <hr/>
+ <h2>
+              <b>Search String</b>
+            </h2>
+      $datasource$  $search_id$  $text_match$ $user_query$ $user_filter$|where "hashtags{}" !="[]" OR "hashtags{}" !=""|  eventstats  count by  "hashtags{}"| eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S")  | table   "hashtags{}"   text screen_name,retweets,likes,count Time| rename "hashtags{}" as Hashtags, count as "Total Tweets for this Hashtags", text as Tweet, likes as Likes, retweets as Retweets, screen_name as User| sort - "Total Tweets for this Hashtags",Retweets,Likes| table Hashtags, Tweet, Likes, Retweets, User "Total Tweets for this Hashtags"
+      </p>
+  </row>
+  
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage1$">
+      <title>Total Number of Tweets</title>
+      <single>
+        <search>
+          <query>$datasource$ $textsource$ $search_id$ $user_filter$$text_match$| where text!=""| stats count(text)</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel depends="$showTextImage2$">
+      <title>Total Number of Images</title>
+      <single>
+        <search>
+          <query>$datasource$ $imagesource$ $image_search_id$ | stats count(image)</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel depends="$showTextImage1$">
+      <title>Count of Tweets by Date</title>
+      <chart>
+        <title>Showing top 30 days data</title>
+        <search>
+          <query>$datasource$ $textsource$ $search_id$ $user_filter$ |  where text!=""| timechart span=24h count |table _time count|rename count as "Tweet Count"| sort - "Tweet Count" limit=30</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisY.abbreviation">auto</option>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel depends="$showTextImage2$">
+      <table>
+        <title>Last Run search_ids and Number of Images</title>
+        <search>
+          <query>index=twitter $imagesource$ | where isnotnull(image_search_id ) |  rename "img_urls" as URL | eventstats count(URL) by image_search_id | rename count(URL) as "Number of Images" |dedup image_search_id | eval "Search Date"=substr(current_time,1,8) | sort - current_time |  table image_search_id, "Number of Images" "Search Date"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+    <panel depends="$showVideo$">
+      <table>
+        <title>Last Run search_ids and Number of Videos</title>
+        <search>
+          <query>index=twitter $videosource$ | where isnotnull(video_search_id) |  rename "video_urls" as URL | eventstats count(URL) by video_search_id | rename count(URL) as "Number of Videos" |dedup video_search_id | eval "Search Date"=substr(current_time,1,8) | sort - current_time |  table video_search_id, "Number of Videos" "Search Date"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+    <panel depends="$showTextImage1$">
+      <title>Last Run search_ids and Number of Tweets</title>
+      <table>
+        <search>
+          <query>index=twitter text!="" $textsource$ | eventstats count(text) by search_id |  rename "count(text)" as "Number of Tweets" |dedup search_id | eval "Search Date"=substr(current_time,1,8) | sort - current_time| table search_id, "Number of Tweets" "Search Date"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage1$">
+      <title>Tweets</title>
+      <table>
+        <title>Most Popular Hashtags on the Top</title>
+        <search>
+          <query>$datasource$ $textsource$ $search_id$ $text_match$ $user_query$  $user_filter$|where "hashtags{}" !="[]" OR "hashtags{}" !=""|  eventstats  count by  "hashtags{}"| eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S")  | table   "hashtags{}"   text screen_name,retweets,likes,count Time| rename "hashtags{}" as Hashtags, count as "Total Tweets for this Hashtags", text as Tweet, likes as Likes, retweets as Retweets, screen_name as User| sort 0 -  "Total Tweets for this Hashtags",Retweets,Likes| table Hashtags, Tweet, Likes, Retweets, User "Total Tweets for this Hashtags", Time</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage1$">
+      <title>All Images in the Search IDs</title>
+      <table>
+        <title>Most Popular Images on the Top</title>
+        <search base="media_search">
+          <query>|rename "img_urls{}" as URL, likes as Likes, retweets as Retweets | where URL!=""| eventstats  count by URL | rename count as "URL Count" | sort 0 - "URL Count", Retweets,Likes, Time |  table URL, "URL Count", Retweets,  Likes,  Time</query>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="URL">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage1$">
+      <title>All Videos in the Search IDs</title>
+      <table>
+        <title>Most Popular Videos on the Top</title>
+        <search base="media_search">
+          <query>|rename "video_urls{}" as URL, likes as Likes, retweets as Retweets | where URL!=""| eventstats  count by URL | rename count as "URL Count" | sort 0 - "URL Count", Retweets,Likes, Time |  table URL, "URL Count", Retweets,  Likes,  Time</query>
+        </search>
+        <drilldown>
+          <condition field="URL">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage2$">
+      <table>
+        <title>Image Search</title>
+        <search>
+          <query>$datasource$ $imagesource$ $image_search_id$  $user_query$ | eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S") | rename image as "Image Description" | table URL "Image Description"  Time</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="count">50</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">true</option>
+        <option name="wrap">true</option>
+        <drilldown>
+          <condition field="URL">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage2$">
+      <html>
+        <center>
+          <img style="padding-top:60px" height="400" src="/static/app/search/twitter/$form.image_search_id$_2x.png" width="1200" alt="COVID Websites Images"/>
+        </center>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showTextImage2$">
+      <title>Clickable Image Thumbnail</title>
+      <html>
+     <ul>
+       <li>
+            <a href="/static/app/search/image_html/twitter/$form.image_search_id$.htm" target="_none">Click Here for Clickable Image Thumbnails(Needs a Search ID)</a>
+          </li>
+     </ul>
+   </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showVideo$">
+      <title>Video Thumbnail</title>
+      <html>
+     <ul>
+       <li>
+            <a href="/static/app/search/video/twitter/$form.video_search_id$.htm" target="_none">Click here (Needs a Media Search ID)</a>
+          </li>
+     </ul>
+   </html>
+    </panel>
+  </row>
+</form>

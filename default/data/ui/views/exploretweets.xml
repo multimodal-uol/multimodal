@@ -1,0 +1,103 @@
+<form>
+  <label>2. Expore Tweets</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="field1">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="text" token="master_search">
+      <label>INPUT</label>
+      <default>index=twitter_text</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>  
+    <p>
+      <b>All Tweets for search_id <i>boris95016</i> and <i>trump85652</i> </b>
+          <br/> 
+      index=twitter_text | where search_id in("boris95016", "trump85652") <br/> 
+      
+      <b>Tweets contain <i>coronavirus</i> as a word</b>
+          <br/> 
+index=twitter_text | where like(text,"%coronavirus%") <br/> 
+
+<b>Tweets contain <i>coronavirus</i>  OR <i>COVID</i> as words</b>
+          <br/> 
+index=twitter_text | where like(text,"%coronavirus%") OR like(text,"%COVID%")  <br/> 
+
+<b>Tweets contain <i>coronavirus</i>  AND <i>COVID</i> as wors</b>
+          <br/> 
+index=twitter_text | where like(text,"%coronavirus%") AND like(text,"%COVID%") <br/> 
+
+<b>Tweets does not contain <i> coronavirus</i>  as a words</b>
+          <br/> 
+index=twitter_text | where !like(text,"%coronavirus%") <br/> 
+
+
+</p>
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <single>
+        <title>Total Number of Tweets</title>
+        <search>
+          <query>$master_search$  |stats count(text)</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <chart>
+        <title>Count of Tweets by Date</title>
+        <search>
+          <query>$master_search$   | stats count by date_mday | rename date_mday as Date |sort + Date</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Tweets with a Hashtag</title>
+      <table>
+        <title>Most Popular Hashtags on the Top</title>
+        <search>
+          <query>$master_search$  |where hashtags !="[]"| replace "[u'*" with "*"| replace "*']" with "*"|replace "u'*'" with "*"| mvexpand hashtags| eventstats  count by hashtags| eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S")  | table  hashtags   text screen_name,retweets,likes,count Time| rename hashtags as Hashtags, count as "Total Tweets for this Hashtags", text as Tweets, likes as Likes, retweets as Retweets, screen_name as User| sort - "Total Tweets for this Hashtags",Retweets,Likes</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Tweets with No Hashtags</title>
+      <table>
+        <title>Most Number of Reweets on the Top</title>
+        <search>
+          <query>$master_search$ | where hashtags="[]"  | eval Time = strftime(_time, "%Y-%d-%m %H:%M:%S")  |  table text screen_name,retweets,likes Time| rename  text as Tweets, likes as Likes, retweets as Retweets, screen_name as User| sort - Retweets, Likes</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

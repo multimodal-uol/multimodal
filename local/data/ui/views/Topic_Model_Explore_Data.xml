@@ -1,0 +1,117 @@
+<form>
+  <label>9.1 Explore Data</label>
+  <init>
+    <unset token="show_notification"></unset>
+  </init>
+  <search base="show_data" depends="$show_notification2$">
+    <query>
+      $savedata$
+    </query>
+    <progress>
+      <unset token="show_notification1"></unset>
+    </progress>
+    <done>
+      <set token="show_notification1">True</set>
+    </done>
+  </search>
+  <search id="base_search">
+    <query>
+      $datasource$ $user_filter$ $user_query$ $search_id_prefix$ $search_id$ $limit$| table *
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+    <progress>
+      <unset token="show_notification1"></unset>
+    </progress>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="checkbox" token="test">
+      <label>If checked data will not be saved</label>
+      <choice value="True">Testing</choice>
+      <change>
+        <condition value="True">
+          <unset token="show_notification2"></unset>
+          <set token="savedata"></set>
+        </condition>
+        <condition>
+          <set token="show_notification2">True</set>
+          <set token="savedata">| table text | cleantext textfield=text mv=false |outputlookup topic_model.csv</set>
+        </condition>
+      </change>
+      <initialValue>True</initialValue>
+      <delimiter> </delimiter>
+    </input>
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="radio" token="datasource">
+      <label>Data Source</label>
+      <choice value="Newspaper">Newspaper</choice>
+      <choice value="Twitter">Twitter</choice>
+      <choice value="covid|dedup text">Covid Websites</choice>
+      <change>
+        <condition label="Newspaper">
+          <set token="show_textfield">Title,Summary,text</set>
+          <set token="user_query">|rename title{} as Title</set>
+          <unset token="show_search_id"></unset>
+          <set token="search_id_prefix"></set>
+          <set token="form.search_id"></set>
+        </condition>
+        <condition label="Twitter">
+          <set token="show_textfield">text</set>
+          <set token="user_query"></set>
+          <set token="search_id_prefix">|where isnotnull(search_id) and search_id in (</set>
+          <set token="show_search_id">True</set>
+        </condition>
+        <condition label="Covid Websites">
+          <set token="show_textfield">Title,Summary,text</set>
+          <set token="user_query">|rename title{} as Title</set>
+          <unset token="show_search_id"></unset>
+          <set token="search_id_prefix"></set>
+          <set token="form.search_id"></set>
+        </condition>
+      </change>
+      <prefix>index=</prefix>
+    </input>
+    <input type="text" token="search_id" depends="$show_search_id$">
+      <label>Twitter Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <default></default>
+      <suffix>)</suffix>
+    </input>
+    <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+    <input type="text" token="limit">
+      <label>Search Limit</label>
+      <default>10000</default>
+      <prefix>| head </prefix>
+    </input>
+  </fieldset>
+  <row depends="$show_notification1$,$show_notification2$">
+    <panel>
+      <html>
+        <h1>
+          <b style="color:green;">Data saved successfully.</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>'text' column will be used for topic modeling</title>
+        <search id="show_data" base="base_search">
+          <query>
+            |table $show_textfield$
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+</form>

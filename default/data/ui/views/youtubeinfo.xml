@@ -1,0 +1,283 @@
+<form>
+  <label>YouTube Info</label>
+  <fieldset submitButton="false">
+    <input type="time" token="time_tok1" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Video info</title>
+      <table>
+        <title>Video info</title>
+        <search>
+          <query>| makeresults | eval video_id="dQw4w9WgXcQ" | ytinfo | lookup youtube_categories.csv video_category</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Total Video Views</title>
+      <single>
+        <search>
+          <query>`web_source` "watch?v" | stats count</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x3D203D","0x3D203D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trendColorInterpretation">inverse</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Total Count of Video Views - Today</title>
+      <single>
+        <search>
+          <query>`web_source`  "watch?v" 
+| timechart span=1d count(url) | appendpipe [stats count | eval NoResult=""  | where count=0 | fields - count]</query>
+          <earliest>-5d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x3D203D","0x3D203D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="trendColorInterpretation">inverse</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Distinct Video Count - Today</title>
+      <single>
+        <search>
+          <query>`web_source` "watch?v" 
+| timechart span=1d dc(url) | appendpipe [stats count | eval NoResult=""  | where count=0 | fields - count]</query>
+          <earliest>-5d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="rangeColors">["0x3D203D","0x3D203D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+        <option name="trendColorInterpretation">inverse</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+        <option name="useThousandSeparators">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Recent Video's</title>
+      <table>
+        <search>
+          <query>`web_source` "watch?v" 
+| `rex_video_id`
+| dedup video_id 
+| ytinfo 
+| lookup youtube_categories.csv video_category OUTPUT cat_desc 
+| eval video_title=IF(video_title LIKE "error getting JSON%","Invalid Video ID",video_title)
+| eval video_category=IF(video_category LIKE "error getting JSON%","Invalid Video ID",video_category)
+| eval view_count=IF(view_count LIKE "error getting JSON%","Invalid Video ID",view_count)
+| table _time url cs_username video_id video_title cat_desc view_count
+| rename _time AS Time url AS URL cs_username AS User video_id AS ID video_title AS "Video Title" cat_desc AS "Video Category" view_count AS "View Count"
+| convert ctime(Time)</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <drilldown target="_blank">
+          <link>
+            <![CDATA[/app/YouTube-Video-Info-For-Splunk/youtube_image?&form.video_id=$row.ID$]]>
+          </link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Count by Video Category</title>
+      <chart>
+        <search>
+          <query>`web_source` "watch?v" 
+| `rex_video_id`
+|  stats count by video_id
+| ytinfo
+| eval video_title=IF(video_title LIKE "error getting JSON%","Invalid Video ID",video_title)
+| eval video_category=IF(video_category LIKE "error getting JSON%","Invalid Video ID",video_category)
+| eval view_count=IF(view_count LIKE "error getting JSON%","Invalid Video ID",view_count)
+| lookup youtube_categories.csv video_category OUTPUT cat_desc 
+| stats count by cat_desc</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Count by Video Title</title>
+      <chart>
+        <search>
+          <query>`web_source` "watch?v" 
+| `rex_video_id`
+|  stats count by video_id
+| ytinfo
+| eval video_title=IF(video_title LIKE "error getting JSON%","Invalid Video ID",video_title)
+| eval video_category=IF(video_category LIKE "error getting JSON%","Invalid Video ID",video_category)
+| eval view_count=IF(view_count LIKE "error getting JSON%","Invalid Video ID",view_count)
+| stats count by video_title</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Top Videos Watched</title>
+      <table>
+        <search>
+          <query>`web_source` "watch?v" 
+| `rex_video_id`
+|  stats count by video_id
+| ytinfo
+| eval video_title=IF(video_title LIKE "error getting JSON%","Invalid Video ID",video_title)
+| eval video_category=IF(video_category LIKE "error getting JSON%","Invalid Video ID",video_category)
+| eval view_count=IF(view_count LIKE "error getting JSON%","Invalid Video ID",view_count)
+| top video_title showperc=f
+| rename video_title AS "Video Title" count AS Count
+| sort - Count</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Count by Video Category</title>
+      <table>
+        <search>
+          <query>`web_source` "watch?v" 
+| `rex_video_id`
+|  stats count by video_id
+| ytinfo
+| eval video_title=IF(video_title LIKE "error getting JSON%","Invalid Video ID",video_title)
+| eval video_category=IF(video_category LIKE "error getting JSON%","Invalid Video ID",video_category)
+| eval view_count=IF(view_count LIKE "error getting JSON%","Invalid Video ID",view_count)
+| lookup youtube_categories.csv video_category OUTPUT cat_desc 
+| top cat_desc showperc=f
+| rename cat_desc AS "Video Category" count AS Count
+| sort - Count</query>
+          <earliest>$time_tok1.earliest$</earliest>
+          <latest>$time_tok1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

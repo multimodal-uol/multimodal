@@ -1,0 +1,32 @@
+[
+    {
+        "current_time": [
+            1,
+            2,
+            3
+        ],
+        "movie_link": "sdsd",
+        "movie_desription": 3,
+        "title": "sdsd",
+        "date_published": "sdsd",
+        "news_outlet": "sdsd",
+        "article_link": "sdsd"
+    },
+    {
+        "current_time": [
+            "hgidsofjdi",
+            "hgidsofjdi",
+            "hgidsofjdi"
+        ],
+        "movie_link": [
+            "hgidsofjdi",
+            "hgidsofjdi",
+            "hgidsofjdi"
+        ],
+        "movie_desription": 3,
+        "title": "sdsd",
+        "date_published": "sdsd",
+        "news_outlet": "sdsd",
+        "article_link": "sdsd"
+    }
+]

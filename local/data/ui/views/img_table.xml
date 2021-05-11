@@ -1,0 +1,36 @@
+<dashboard script="img_table.js">
+  <label>img_table</label>
+  <row>
+  <panel id="img_table">
+    <html>
+      <div id="img_table"></div>
+    </html>
+  </panel>
+</row>
+  <row>
+    <panel>
+      <table>
+        <title>urls</title>
+        <search>
+          <query>| inputlookup text_img.csv| table orig_text, twitter_img_urls, newspaper_img_urls</query>
+          <earliest>$earliest$</earliest>
+          <latest>$latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+   <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        p {
+            word-break: break-all;
+            white-space: normal;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</dashboard>

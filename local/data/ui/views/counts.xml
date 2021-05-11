@@ -1,0 +1,1078 @@
+<form script="counts.js" hideEdit="false">
+  <label>3. Counts</label>
+  <description>Click in panels with (+) for further action</description>
+  <search id="base_search">
+    <query>
+$datasource$ $form.user_filter$ | $form.master_search$ | where isnotnull(search_id) $search_id$ $addprefix$ $image_search_id$ OR $news_outlet$ $current_time$$user_filter$
+$sent_begin$| vader textfield="$textfield$" full_output=f | eval sentiment = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")$sent_end$
+$html_begin$| bs4 textfield="$textfield$" $html_end$
+| cleantext textfield="$textfield$" base_type=lemma_pos $stopwords$ $custom_stopwords$ ngram_range=$ngram$ ngram_mix=t keep_orig=t term_min_len=2
+| eval pos_zip = mvzip(tag,'$textfield$',",")
+| eval no_ne = mvfilter(!match(pos_zip,"NNPS?,"))
+| rex field=no_ne mode=sed "s/[^,]+,([a-z]+)/\1/"
+$ne_begin$| eval "$textfield$" = no_ne $ne_end$ 
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search base="base_search" id="counts">
+    <query>
+| stats count BY "$textfield$"
+| search "$textfield$"!=""
+| sort -count
+</query>
+  </search>
+  <search base="base_search" id="ngram_counts">
+    <query>
+| stats count BY ngrams
+| sort -count
+</query>
+  </search>
+  <search base="base_search" id="group_count">
+    <query>
+| stats count BY "$textfield$" "$group$"
+| search "$textfield$"!=""
+| sort -count
+</query>
+  </search>
+  <search>
+    <query>
+| rest /services/apps/local 
+| search disabled=0 title=wordcloud_app
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+    <done>
+      <condition match="$job.resultCount$ &gt; 0">
+        <set token="wordcloud_app">true</set>
+      </condition>
+    </done>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="radio" searchWhenChanged="false" token="newssocialcovid">
+      <label>Data Source</label>
+      <choice value="socialnews">Social and News Media</choice>
+      <choice value="covidwebsites">COVID Websites</choice>
+      <change>
+        <condition value="socialnews">
+          <set token="datasource">index=newspaper</set>
+          <set token="showdatasource">true</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.user_filter"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+        <condition value="covidwebsites">
+          <set token="datasource">index=covid|dedup text</set>
+          <set token="form.user_filter">| where like(text,"%COVID%") OR like(text,"%corona%") OR like("Title","%COVID%") OR like("Title","%corona%") OR like("article_link","%COVID%") OR like("article_link","%corona%")</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="showdatasource"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+      </change>
+      <default>socialnews</default>
+    </input>
+    <input type="checkbox" token="datasource" searchWhenChanged="false" depends="$showdatasource$">
+      <label>Social and News Media</label>
+      <choice value="newspaper">Newspapers</choice>
+      <choice value="twitter">Twitter</choice>
+      <prefix>index=</prefix>
+      <delimiter> OR index=</delimiter>
+      <default>newspaper</default>
+    </input>
+    <input type="radio" token="master_search" searchWhenChanged="false">
+      <label>Source Type*</label>
+      <choice value="where text!=&quot;&quot;">Text</choice>
+      <choice value="where  isnotnull(image) | dedup text">Image</choice>
+      <choice value="eval textimage = toString(text) + &quot;;&quot; + toString(image) |makemv delim=&quot;;&quot; textimage |mvexpand textimage| where textimage !=&quot;Null&quot; and isnotnull(textimage)">Text &amp; Image</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <set token="showtext">True</set>
+          <unset token="form.current_time"></unset>
+          <unset token="showImage"></unset>
+          <set token="addprefix"></set>
+          <set token="form.image_search_id"></set>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="showImage">True</set>
+          <set token="addprefix">AND</set>
+          <unset token="form.current_time"></unset>
+          <unset token="showtext"></unset>
+          <set token="form.search_id"></set>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.textfield">textimage</set>
+          <unset token="form.current_time"></unset>
+          <set token="showImage">True</set>
+          <set token="showtext">True</set>
+          <set token="addprefix">OR</set>
+        </condition>
+      </change>
+    </input>
+    <input type="multiselect" token="news_outlet" depends="$showdatasource$">
+      <label>Select Newspapers</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>%</default>
+    </input>
+    <input type="multiselect" token="news_outlet" rejects="$showdatasource$">
+      <label>COVID Websites (can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <search>
+        <query>index=covid source="/opt/coviddata/text/*" |dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <default>%</default>
+    </input>
+    <input id="search_id" type="text" token="search_id" depends="$showdatasource$,$showtext$">
+      <label>Twitter Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <prefix>AND search_id in (</prefix>
+      <suffix>) </suffix>
+      <default></default>
+      <initialValue>*</initialValue>
+    </input>
+    <input id="image_search_id" type="text" token="image_search_id" depends="$showdatasource$,$showImage$">
+      <label>Twitter Image Search (usage same Search ID)</label>
+      <prefix>image_search_id in (</prefix>
+      <suffix>) </suffix>
+      <default></default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="text" token="current_time" depends="$showdatasource$,$showImage$">
+      <label>Newspaper Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>OR current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="current_time" rejects="$showdatasource$" depends="$showImage$">
+      <label>COVID Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>OR current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+    <html>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+    </html>
+    <input type="text" token="textfield">
+      <label>Text Field</label>
+      <default>text</default>
+    </input>
+    <input id="horiz_two_radio_1" type="radio" token="html_dummy">
+      <label>Remove HTML</label>
+      <choice value="Yes">Yes</choice>
+      <choice value="No">No</choice>
+      <change>
+        <condition value="Yes">
+          <set token="html_begin"></set>
+          <set token="html_end"></set>
+        </condition>
+        <condition value="No">
+          <set token="html_begin">`comment("</set>
+          <set token="html_end">")`</set>
+        </condition>
+      </change>
+      <default>No</default>
+      <initialValue>No</initialValue>
+    </input>
+    <input id="horiz_two_radio_2" type="radio" token="stopwords">
+      <label>Remove Stopwords (en)</label>
+      <choice value="remove_stopwords=t">Yes</choice>
+      <choice value="remove_stopwords=f">No</choice>
+      <change>
+        <condition value="remove_stopwords=t">
+          <unset token="sw_hidden"></unset>
+        </condition>
+        <condition value="remove_stopwords=f">
+          <set token="sw_hidden">True</set>
+        </condition>
+      </change>
+      <default>remove_stopwords=t</default>
+      <initialValue>remove_stopwords=t</initialValue>
+    </input>
+    <input id="text_medium" type="text" token="custom_stopwords" rejects="$sw_hidden$">
+      <label>Custom Stopwords (comma separated)</label>
+      <prefix>custom_stopwords="</prefix>
+      <suffix>"</suffix>
+      <default></default>
+    </input>
+    <html>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+    </html>
+    <input type="dropdown" token="ngram">
+      <label>ngram Range</label>
+      <choice value="1-1">1-1</choice>
+      <choice value="2-2">2-2</choice>
+      <choice value="2-3">2-3</choice>
+      <choice value="2-4">2-4</choice>
+      <choice value="3-3">3-3</choice>
+      <choice value="3-4">3-4</choice>
+      <choice value="4-4">4-4</choice>
+      <default>2-3</default>
+      <initialValue>1-1</initialValue>
+      <change>
+        <condition value="1-1">
+          <unset token="ngram_hidden"></unset>
+        </condition>
+        <condition value="2-2">
+          <set token="ngram_hidden">True</set>
+        </condition>
+        <condition value="2-3">
+          <set token="ngram_hidden">True</set>
+        </condition>
+        <condition value="2-4">
+          <set token="ngram_hidden">True</set>
+        </condition>
+        <condition value="3-3">
+          <set token="ngram_hidden">True</set>
+        </condition>
+        <condition value="3-4">
+          <set token="ngram_hidden">True</set>
+        </condition>
+        <condition value="4-4">
+          <set token="ngram_hidden">True</set>
+        </condition>
+      </change>
+    </input>
+    <input id="horiz_two_radio_3" type="radio" token="use_group">
+      <label>Group By?</label>
+      <choice value="None">None</choice>
+      <choice value="Field">Field</choice>
+      <choice value="Sentiment">Sentiment</choice>
+      <change>
+        <condition value="None">
+          <unset token="group_hidden"></unset>
+          <unset token="group_hidden_opt"></unset>
+          <unset token="sentiment_hidden"></unset>
+          <set token="sent_begin">`comment("</set>
+          <set token="sent_end">")`</set>
+        </condition>
+        <condition value="Field">
+          <set token="group_hidden">True</set>
+          <set token="group_hidden_opt">True</set>
+          <unset token="sentiment_hidden"></unset>
+          <set token="sent_begin">`comment("</set>
+          <set token="sent_end">")`</set>
+        </condition>
+        <condition value="Sentiment">
+          <set token="group_hidden">True</set>
+          <unset token="group_hidden_opt"></unset>
+          <set token="sentiment_hidden">True</set>
+          <set token="sent_begin"></set>
+          <set token="sent_end"></set>
+          <set token="group">sentiment</set>
+        </condition>
+      </change>
+      <default>None</default>
+      <initialValue>None</initialValue>
+    </input>
+    <input type="text" token="group" depends="$group_hidden_opt$">
+      <label>Grouping Field</label>
+      <default></default>
+    </input>
+    <input type="dropdown" token="neutral" depends="$sentiment_hidden$">
+      <label>Neutral Zone Size</label>
+      <choice value="0.01">Small</choice>
+      <choice value="0.05">Medium</choice>
+      <choice value="0.1">Large</choice>
+      <default>0.05</default>
+      <initialValue>0.05</initialValue>
+    </input>
+    <input id="horiz_two_radio_4" type="radio" token="named_entities">
+      <label>Separate Named Entities</label>
+      <choice value="Yes">Yes</choice>
+      <choice value="No">No</choice>
+      <default>Yes</default>
+      <initialValue>No</initialValue>
+      <change>
+        <condition value="Yes">
+          <set token="ne_hidden">true</set>
+          <set token="ne_begin"></set>
+          <set token="ne_end"></set>
+          <set token="ne_search">noop</set>
+        </condition>
+        <condition value="No">
+          <set token="ne_begin">`comment("</set>
+          <set token="ne_end">")`</set>
+          <unset token="ne_hidden"></unset>
+          <unset token="ne_search"></unset>
+        </condition>
+      </change>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Select "Text" badio button and click submit to see results with default selections</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+          p {
+            word-break: break-all;
+            white-space: normal;
+          }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Help</title>
+      <html>  
+       <h1 class="w3-center w3-padding-64">
+          <span class="w3-tag w3-wide">Counts Dashboard</span>
+        </h1>
+	<p>The <i>Counts</i> dashboard fulfills the exploratory data analysisand useful for answering some basic questions about a corpus. Text Exploratory Data Analysis (EDA) using lemmatization, ngrams, and parts-of-speech—simple word counts may help to extract or mine meaning and concepts out of the text. The <i> Counts</i>  dashboard tokenize the words in the corpus and get counts of how frequently they show up in the text. This also includes several other counts--total counts of all words, unique words, total counts of documents, ngrams totals (based on the range the user set), counts by part-of-speech tags, a word cloud of the counts and ngrams if chosen, as well as counts by an optional grouping field. Groups can result in some interesting insight. There also are some drill down options and a zipf plot if the user is keeping stopwords. Noun(NN), adjectives (JJ) and adverbs (RB). Verbs (VBD) can be analyzed as part of Parts-of-Speech(POS). Clicking on the term, it shows, where the word is used respective to the POS.</p> 	
+	
+	<row>
+  <p>
+    <hr/>
+ <h2>
+              <b>Search String</b>
+            </h2>
+      $datasource$ 
+      </p>
+  </row>
+  
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Total # Terms</title>
+      <single>
+        <search base="base_search">
+          <query>
+| stats count("$textfield$")
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Total # Unique Terms</title>
+      <single>
+        <search base="base_search">
+          <query>
+| stats dc("$textfield$")
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Total # lines</title>
+      <single>
+        <search base="base_search">
+          <query>
+| stats count
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Avg Terms Per line</title>
+      <single>
+        <search base="base_search">
+          <query>
+| stats count("$textfield$") AS total count
+| eval avgCount = total/count
+| fields avgCount
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="numberPrecision">0.0</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ngram_hidden$">
+      <title>Total # ngrams</title>
+      <single>
+        <search base="base_search">
+          <query>| stats count(ngrams)</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x9C9C1E","0x9C9C1E"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$ngram_hidden$">
+      <title>Total # Unique ngrams</title>
+      <single>
+        <search base="base_search">
+          <query>| stats dc(ngrams)</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x9C9C1E","0x9C9C1E"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$group_hidden$">
+      <title>Total # $group$</title>
+      <single>
+        <search base="base_search">
+          <query>| stats dc($group$)</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E5D9C","0x1E5D9C"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$group_hidden$">
+      <title>Avg Terms Per $group$</title>
+      <single>
+        <search base="group_counts">
+          <query>
+| stats avg(count)</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="numberPrecision">0</option>
+        <option name="rangeColors">["0x1E5D9C","0x1E5D9C"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row depends="$ne_hidden$">
+    <panel>
+      <title>Total Named Entities</title>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="base_search">
+          <query>$ne_search$ | stats count(eval(mvfilter(match(pos_tuple,"[\'\"]NNPS?[\'\"]")))) AS total</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">static_color</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">0</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+    </panel>
+    <panel>
+      <title>Unique Named Entities</title>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="base_search">
+          <query>| stats dc(eval(mvfilter(match(pos_tuple,"[\'\"]NNPS?[\'\"]")))) AS total</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">static_color</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">0</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Top Parts-of-Speech Tags (+)</title>
+      <chart>
+        <search base="base_search">
+          <query>| stats count by tag 
+| sort -count
+| eventstats avg(count) AS avgCount 
+| where count &gt; (avgCount /3)
+| fields tag count</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">45</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="height">385</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"count":0x555555}</option>
+        <drilldown>
+          <set token="pos">$click.value$</set>
+          <set token="pos_hidden">TRUE</set>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel>
+      <title>Top Terms (+)</title>
+      <table id="tabledatabar">
+        <search base="counts">
+          <query>
+| eventstats sum(count) AS total
+| eval proportion = (count/total) * 100
+| fields - total
+| rename "$textfield$" AS term</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#EC9960" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <fields>term,count</fields>
+        <drilldown>
+          <set token="specific_word">$row.term$</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$ngram_hidden$">
+      <title>Top ngrams (+)</title>
+      <table>
+        <search base="ngram_counts">
+          <progress>
+            <unset token="word_hidden"></unset>
+            <unset token="generate_excel"></unset>
+            <unset token="filename"></unset>
+          </progress>
+          <query>
+| fields - total</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#9C9C1E" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <eval token="specific_word">replace($row.ngrams$," ",".*")</eval>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row depends="$ne_hidden$">
+    <panel>
+      <title>Top Named Entities (+)</title>
+      <table>
+        <search base="base_search" id="ne_counts">
+          <query>
+$ne_search$
+| eval ne = mvfilter(match(pos_zip,"NNPS?,"))
+| rex field=ne mode=sed "s/[^,]+,([a-z]+)/\1/"
+| stats count by ne
+| sort -count
+</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#555" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <set token="specific_word">$row.ne$</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$wordcloud_app$">
+      <title>Named Entities Cloud</title>
+      <input type="dropdown" token="ne_count" searchWhenChanged="true">
+        <label># Entities</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>25</default>
+        <initialValue>25</initialValue>
+      </input>
+      <viz type="wordcloud_app.wordcloud">
+        <search base="ne_counts">
+          <query> 
+| head $ne_count$
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#9C1E5D</option>
+        <option name="wordcloud_app.wordcloud.minColor">#9C9C1E</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">8</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+        <option name="height">350</option>
+      </viz>
+    </panel>
+    <panel rejects="$wordcloud_app$">
+      <title>Named Entities Cloud</title>
+      <input type="dropdown" token="ne_count" searchWhenChanged="true">
+        <label># Entities</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>25</default>
+        <initialValue>25</initialValue>
+      </input>
+      <viz type="simple_xml_examples.tagcloud">
+        <search base="ne_counts">
+          <query> 
+| head $ne_count$
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">350</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="simple_xml_examples.tagcloud.labelField">ne</option>
+        <option name="simple_xml_examples.tagcloud.maxFontSize">72</option>
+        <option name="simple_xml_examples.tagcloud.minFontSize">6</option>
+        <option name="simple_xml_examples.tagcloud.valueField">count</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$pos_hidden$">
+      <table>
+        <title>$pos$ Explanation (Sarkar, D. (2016). Text Analytics with Python)</title>
+        <search>
+          <query>| inputlookup pos_tags.csv
+| where TAG=="$pos$"
+| table TAG DESCRIPTION EXAMPLE*</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <drilldown>
+          <unset token="pos_hidden"></unset>
+        </drilldown>
+      </table>
+      <table>
+        <title>Top $pos$ Terms (+)</title>
+        <search base="base_search">
+          <query>
+| stats count BY pos_zip
+| search pos_zip="$pos$,*"
+| rex field=pos_zip mode=sed "s/[^,]+,([a-z]+)/\1/"
+| rename pos_zip AS pos_term
+| sort -count
+</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#EC9960" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <unset token="pos_hidden"></unset>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$word_hidden$">
+      <table id="highlight">
+        <title>$specific_word$ Occurences</title>
+        <search>
+          <query>
+            $datasource$ $form.user_filter$ | $form.master_search$ | where isnotnull(search_id) $search_id$ $addprefix$ $image_search_id$ OR $news_outlet$ $current_time$$user_filter$
+$sent_begin$| vader textfield="$textfield$" full_output=f | eval sentiment = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")$sent_end$
+$html_begin$| bs4 textfield="$textfield$" $html_end$
+| cleantext textfield="$textfield$" base_type=lemma_pos $stopwords$ $custom_stopwords$ ngram_range=$ngram$ ngram_mix=t keep_orig=t term_min_len=2
+| eval pos_zip = mvzip(tag,'$textfield$',",")
+| eval no_ne = mvfilter(!match(pos_zip,"NNPS?,"))
+| rex field=no_ne mode=sed "s/[^,]+,([a-z]+)/\1/"
+$ne_begin$| eval "$textfield$" = no_ne $ne_end$ <!-- This part is copied from the base_search-->
+
+ | regex orig_text="(?i)\b$specific_word$\b"  | rename feature_img as newspaper_img_urls|rename "img_urls{}" as twitter_img_urls
+| table orig_text twitter_img_urls newspaper_img_urls
+| mvexpand twitter_img_urls
+| mvexpand newspaper_img_urls
+| outputlookup text_img.csv
+</query>
+          <progress>
+            <unset token="generate_excel"></unset>
+            <unset token="filename"></unset>
+          </progress>
+          <done>
+            <set token="generate_excel">true</set>
+          </done>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="twitter_img_urls">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="newspaper_img_urls">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$no_show$">
+      <table>
+        <title>noshow</title>
+        <search depends="$generate_excel$">
+          <progress>
+            <unset token="filename"></unset>
+          </progress>
+          <query>
+            | inputlookup text_img.csv
+            | url2img ori_text=orig_text twitter_img_urls=twitter_img_urls newspaper_img_urls=newspaper_img_urls
+          </query>
+          <earliest>$earliest$</earliest>
+          <latest>$latest$</latest>
+          <done>
+            <set token="filename">$result.filename$</set>
+          </done>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+    <panel id="img_table" depends="$filename$">
+      <html>
+        <!--div id="img_table"></div-->
+        <p>
+          <a href="http://35.246.69.64:8000/en-GB/app/Multimodal/img_table" target="_none">Click here to see the table with images</a>
+        </p>
+        <p>
+          <a href="http://35.246.69.64:8000/en-GB/static/app/Multimodal/excel/$filename$" target="_none" download="$filename$">Excel file download link</a>
+        </p>
+     </html>
+    </panel>
+  </row>
+  <row depends="$group_hidden$">
+    <panel>
+      <title>Total # Terms Per $group$ (+)</title>
+      <chart>
+        <search base="base_search" id="group_counts">
+          <query>| stats count BY "$textfield$" "$group$"
+| stats sum(count) AS count BY "$group$"
+| sort -count</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="height">398</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"count":0x1E5D9C}</option>
+        <drilldown>
+          <set token="subgroup">$click.value$</set>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$subgroup$">
+      <title>Top Terms by $subgroup$ (+)</title>
+      <table id="tabledatabar2">
+        <search base="group_count">
+          <query>| where '$group$'=="$subgroup$"
+| rename "$textfield$" AS term        
+         </query>
+        </search>
+        <fields>term,count</fields>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#EC9960" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <set token="specific_word">$row.term$</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$wordcloud_app$">
+      <title>WordCloud</title>
+      <!--<input type="text" token="term_count" id="range" searchWhenChanged="true">
+        <label>Terms (25-400)</label>
+        <default>50</default>
+      </input>-->
+      <input type="dropdown" token="term_count" searchWhenChanged="true">
+        <label>Terms</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <choice value="300">300</choice>
+        <choice value="400">400</choice>
+        <default>200</default>
+        <initialValue>200</initialValue>
+      </input>
+      <input id="horiz_two_radio_5" type="radio" token="ngram_cloud" depends="$ngram_hidden$">
+        <label>Show ngram Cloud</label>
+        <choice value="Yes">Yes</choice>
+        <choice value="No">No</choice>
+        <default>Yes</default>
+        <change>
+          <condition value="No">
+            <unset token="ngram_cloud"></unset>
+          </condition>
+          <condition value="Yes">
+            <set token="ngram_cloud">True</set>
+          </condition>
+        </change>
+      </input>
+      <viz type="wordcloud_app.wordcloud">
+        <search base="counts">
+          <query>| fields "$textfield$" count 
+| head $term_count$
+| rename "$textfield$" as "Top keywords"</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#3fc77a</option>
+        <option name="wordcloud_app.wordcloud.minColor">#d93f3c</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">8</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+      </viz>
+    </panel>
+    <panel rejects="$wordcloud_app$">
+      <title>WordCloud</title>
+      <!--<input type="text" token="term_count" id="range" searchWhenChanged="true">
+        <label>Terms (25-400)</label>
+        <default>50</default>
+      </input>-->
+      <input type="dropdown" token="term_count" searchWhenChanged="true">
+        <label>Terms</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <choice value="300">300</choice>
+        <choice value="400">400</choice>
+        <default>200</default>
+        <initialValue>200</initialValue>
+      </input>
+      <input id="horiz_two_radio_6" type="radio" token="ngram_cloud" depends="$ngram_hidden$">
+        <label>Show ngram Cloud</label>
+        <choice value="Yes">Yes</choice>
+        <choice value="No">No</choice>
+        <default>Yes</default>
+        <change>
+          <condition value="No">
+            <unset token="ngram_cloud"></unset>
+          </condition>
+          <condition value="Yes">
+            <set token="ngram_cloud">True</set>
+          </condition>
+        </change>
+      </input>
+      <viz type="simple_xml_examples.tagcloud">
+        <search base="counts">
+          <query>| fields "$textfield$" count 
+| head $term_count$
+| rename "$textfield$" as top_keywords</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="simple_xml_examples.tagcloud.labelField">top_keywords</option>
+        <option name="simple_xml_examples.tagcloud.maxFontSize">32</option>
+        <option name="simple_xml_examples.tagcloud.minFontSize">6</option>
+        <option name="simple_xml_examples.tagcloud.valueField">count</option>
+      </viz>
+    </panel>
+    <panel depends="$ngram_cloud$,$wordcloud_app$">
+      <title>ngram Cloud</title>
+      <!--<input type="text" token="term_count" id="range" searchWhenChanged="true">
+        <label>Terms (25-400)</label>
+        <default>50</default>
+      </input>-->
+      <input type="dropdown" token="ngram_count" searchWhenChanged="true">
+        <label>ngram Combos</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>50</default>
+        <initialValue>50</initialValue>
+      </input>
+      <viz type="wordcloud_app.wordcloud">
+        <search base="ngram_counts">
+          <query> 
+| head $ngram_count$
+| rename ngrams as "Top ngrams"</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#9C1E5D</option>
+        <option name="wordcloud_app.wordcloud.minColor">#9C9C1E</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">8</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+      </viz>
+    </panel>
+    <panel depends="$ngram_cloud$" rejects="$wordcloud_app$">
+      <title>ngram Cloud</title>
+      <!--<input type="text" token="term_count" id="range" searchWhenChanged="true">
+        <label>Terms (25-400)</label>
+        <default>50</default>
+      </input>-->
+      <input type="dropdown" token="ngram_count" searchWhenChanged="true">
+        <label>ngram Combos</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>50</default>
+        <initialValue>50</initialValue>
+      </input>
+      <viz type="simple_xml_examples.tagcloud">
+        <search base="ngram_counts">
+          <query> 
+| head $ngram_count$
+| rename ngrams as top_ngrams</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="simple_xml_examples.tagcloud.labelField">top_ngrams</option>
+        <option name="simple_xml_examples.tagcloud.maxFontSize">30</option>
+        <option name="simple_xml_examples.tagcloud.minFontSize">5</option>
+        <option name="simple_xml_examples.tagcloud.valueField">count</option>
+      </viz>
+    </panel>
+    <panel>
+      <title>Zipf Plot</title>
+      <chart depends="$sw_hidden$">
+        <search base="counts">
+          <query>| fields "$textfield$" count 
+| streamstats count AS rank
+| stats first("$textfield$") AS "$textfield$" first(rank) AS rank BY count
+| sort -count
+| table "$textfield$" rank count</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">auto</option>
+        <option name="charting.axisX.scale">log</option>
+        <option name="charting.axisY.abbreviation">auto</option>
+        <option name="charting.axisY.scale">log</option>
+        <option name="charting.chart">scatter</option>
+        <option name="charting.chart.showDataLabels">minmax</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="height">450</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

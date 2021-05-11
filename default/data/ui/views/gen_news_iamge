@@ -1,0 +1,76 @@
+<form>
+  <label>1. (Optional) Generate Newspaper Image Data</label>
+  <search id="base_search">
+    <query>
+$datasource$ | where  $news_outlet$  $user_filter$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="newspaper">Newspapers</choice>
+      <prefix>index=</prefix>
+      <default>newspaper</default>
+      <delimiter> </delimiter>
+    </input>
+    <input id="user_filter" type="text" token="user_filter">
+      <label>Apply Filter (advanced usage)</label>
+      <prefix> </prefix>
+      <default></default>
+    </input>
+    <input type="multiselect" token="news_outlet">
+      <label>Newspapers(can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>the Guardian</default>
+    </input>
+    <input type="text" token="totalImages">
+      <label>Minimum Number of Images (e.g. 10,all)</label>
+      <default>5</default>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+         <style>
+           div[data-view="views/shared/appbar/Master"] {
+             background-color: brown;
+             }
+            div[data-role="underline"] {
+             background-color:red;
+            }
+         </style>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Image Search</title>
+        <search>
+          <query>$datasource$ feature_img!=""| where  $news_outlet$  $user_filter$|table title{} date_published news_outlet feature_img  article_link|  newsimage totalImages=1 title{} date_published news_outlet feature_img  article_link | rename date_published as "Date Published", news_outlet as Publisher,"title{}" as Title, article_link as "Article Link", feature_img as "Image Link"  | sort - "Date Published"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

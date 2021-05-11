@@ -1,0 +1,211 @@
+<form>
+  <label>1.(Optional) Generate Twitter Media Data</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="checkbox" token="testing" searchWhenChanged="false">
+      <label>If checked data is not indexed</label>
+      <choice value="True">Testing/Create Thumbnails</choice>
+      <change>
+        <condition value="True">
+          <set token="form.totalVideos">0</set>
+          <set token="form.totalImages">0</set>
+          <unset token="auto"></unset>
+        </condition>
+        <condition>
+          <set token="testing">False</set>
+          <set token="form.totalVideos">0</set>
+          <set token="form.totalImages">0</set>
+          <unset token="auto"></unset>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+      <initialValue>True</initialValue>
+    </input>
+    <input type="radio" token="media" searchWhenChanged="false">
+      <label>Media</label>
+      <choice value="where feature_img !=&quot;&quot;">Image</choice>
+      <choice value="rename &quot;movies{}&quot; as videos |where isnotnull(videos)">Video</choice>
+      <change>
+        <condition label="Image">
+          <unset token="auto"></unset>
+          <unset token="form.auto"></unset>
+          <set token="retrieveImage">True</set>
+          <set token="retrieveVideo">False</set>
+          <set token="showImage">true</set>
+          <unset token="showVideo"></unset>
+          <set token="media">where feature_img !=""</set>
+          <set token="form.totalImages">0</set>
+          <set token="showConfScore">true</set>
+        </condition>
+        <condition label="Video">
+          <unset token="auto"></unset>
+          <unset token="form.auto"></unset>
+          <set token="addImageDescription"></set>
+          <set token="retrieveImage">False</set>
+          <set token="retrieveVideo">True</set>
+          <set token="showVideo">true</set>
+          <unset token="showImage"></unset>
+          <set token="media">rename "movies{}" as videos |where isnotnull(videos)</set>
+          <set token="form.totalVideos">0</set>
+          <unset token="showConfScore"></unset>
+        </condition>
+      </change>
+      <default>where feature_img !=""</default>
+      <initialValue>|where feature_img !=""</initialValue>
+    </input>
+    <input type="radio" token="model" depends="$showImage$">
+      <label>Model</label>
+      <choice value="General">General</choice>
+      <choice value="Demographics">Demographics</choice>
+      <choice value="Travel">Travel</choice>
+      <choice value="Food">Food</choice>
+      <choice value="NSFW">Not suitable for work</choice>
+      <choice value="Apparel">Apparel</choice>
+      <choice value="Celebrity">Celebrity</choice>
+      <choice value="Face">Face</choice>
+      <choice value="Logo">Logo</choice>
+      <choice value="Color">Color</choice>
+      <default>General</default>
+    </input>
+    <input type="text" token="search_id">
+      <label>Search ID (only one ID)</label>
+    </input>
+    <input type="text" token="totalImages" depends="$showImage$">
+      <label>Maximum Images (e.g. 10,all)</label>
+      <default>5</default>
+    </input>
+   <input type="text" token="totalVideos" depends="$showVideo$">
+    <label>Maximum Number of Videos</label>
+    <default>0</default>
+   </input>
+    <input type="checkbox" token="addImageDescription" searchWhenChanged="false" depends="$showImage$">
+      <label></label>
+      <choice value="True">Include Image Description (optional)</choice>
+      <prefix>addDescription=</prefix>
+      <change>
+        <condition value="True">
+          <set token="addImageDescription">True</set>
+          <set token="showConfScore">True</set>
+          <set token="form.totalImages">0</set>
+        </condition>
+        <condition>
+          <set token="addImageDescription">False</set>
+          <set token="form.totalImages">0</set>
+          <set token="showConfScore"></set>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+    </input>
+    <input type="text" token="confidenceScore" depends="$showConfScore$">
+      <label>Confidence Score (ranges between 0 to 1)</label>
+      <default>0.3</default>
+    </input>
+     <input type="checkbox" token="auto">
+      <label>Check before submit</label>
+      <choice value="1">check</choice>
+      <delimiter> </delimiter>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showSearchID$">
+      <title>Media Search ID</title>
+      <html>
+         <center>
+           <h1>$searchID$</h1>
+         </center>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showError$">
+      <title>Message</title>
+      <html>
+         <center>
+           <h1>Maximum number of imgaes should be more than 0</h1>
+         </center>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Media Search</title>
+        <search>
+          <done>
+            <condition match="$job.resultCount$==0">
+              <unset token="showSearchID"></unset>
+              <set token="showError"></set>
+            </condition>
+            <condition match="isnotnull($result.image_search_id$)">
+              <set token="searchID">$result.image_search_id$</set>
+              <set token="showSearchID">true</set>
+              <unset token="showError"></unset>
+            </condition>
+            <condition match="isnotnull($result.video_search_id$)">
+              <set token="searchID">$result.video_search_id$</set>
+              <set token="showSearchID">true</set>
+              <unset token="showError"></unset>
+            </condition>
+          </done>
+          <progress>
+            <unset token="searchID"></unset>
+            <unset token="showSearchID"></unset>
+            <unset token="showError"></unset>
+          </progress>
+          <query>|echo2 testing=$testing$ model=$model$ search_id=$search_id$ totalImages=$form.totalImages$ totalVideos=$form.totalVideos$ addImageDescription=$addImageDescription$ confidenceScore=$form.confidenceScore$ retrieveImage=$retrieveImage$ retrieveVideo=$retrieveVideo$|table tweet_id, image, timestamp, search_id, image_search_id, video_search_id, current_time, img_urls| eval auto=$auto$ | rename tweet_id as "Tweet ID", image as "Image Description", img_urls as URL| table search_id, image_search_id, video_search_id, timestamp, current_time, "Image Description", URL</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="URL">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  
+  <row> 
+    <panel depends="$showImage$">
+      <table>
+        <title>Image Thumbnail Generation</title>
+        <search>
+          <query>|thumbnail retrieveImage=$retrieveImage$ search_id=$searchID$ testing=$testing$ sourceindex=twitter</query>
+        </search>
+        <drilldown>
+          <condition field="Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row> 
+    <panel depends="$showVideo$" >
+      <table>
+        <title>Video Thumbnail Generation</title>
+        <search>
+          <query>|videothumbnail testing=$testing$ sourceindex=twitter retrieveVideo=$retrieveVideo$ search_id=$searchID$</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

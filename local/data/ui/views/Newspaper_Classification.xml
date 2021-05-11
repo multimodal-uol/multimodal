@@ -1,0 +1,374 @@
+<form>
+  <label>8. Classification: Newspaper and COVID Websites</label>
+    <!--row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Just select "Text" badio button and click submit to see results with default selections</b>
+        </h1>
+      </html>
+    </panel>
+  </row-->
+  <search id="base_search">
+    <query>
+$datasource$ $form.user_filter$ |where $news_outlet$ $user_query$  $current_time_image$ $current_time_video$ $current_time_textimage$ $current_time_textvideo$
+| sort - "Date Published" 
+          $limit$
+          | table date_published,title,Summary,feature_img,image, movie_link, Movie_Description
+          | eval temp=split(date_published,"T")
+          | eval Date=mvindex(temp,0)
+          | eval Time=mvindex(temp,1)
+          | fields - temp
+          | eval data = mvzip(title,Summary)
+          | cleantext textfield=$clean_textfield$ mv=false 
+          | classification textfield=$clf_textfield$ $model$ $text_weight$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time" searchWhenChanged="false">
+      <label>Time Range</label>
+      <default>
+        <earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="radio" searchWhenChanged="false" token="datasource">
+      <label>Data Source</label>
+      <choice value="socialnews">Newspapers</choice>
+      <choice value="covidwebsites">COVID Websites</choice>
+      <change>
+        <condition value="socialnews">
+          <set token="datasource">index=newspaper</set>
+          <set token="showdatasource">true</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.user_filter"></unset>
+        </condition>
+        <condition value="covidwebsites">
+          <set token="datasource">index=covid |dedup text</set>
+          <set token="form.user_filter">| where like(text,"%COVID%") OR like(text,"%corona%") OR like("Title","%COVID%") OR like("Title","%corona%") OR like("article_link","%COVID%") OR like("article_link","%corona%")</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="showdatasource"></unset>
+          <unset token="form.current_time"></unset>
+        </condition>
+      </change>
+      <default>socialnews</default>
+    </input>
+    <input type="radio" token="user_query" searchWhenChanged="false">
+      <label>Source Type*</label>
+      <choice value="|rename title{} as title| where title!=&quot;&quot;">Text</choice>
+      <choice value="| where isnotnull(title)">Image</choice>
+      <choice value="AND source=&quot;/opt/newspaperdata/videodata/*&quot;">Video</choice>
+      <choice value="">Text &amp; Image</choice>
+      <choice value="| where">Text &amp; Video</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.current_time_image"></set>
+          <set token="form.current_time_video"></set>
+          <set token="form.current_time_textimage"></set>
+          <set token="form.current_time_textvideo"></set>
+          <set token="clf_textfield">data</set>
+          <set token="cluster_textfield">data</set>
+          <set token="clean_textfield">data</set>
+          <set token="current_time_image"></set>
+          <set token="current_time_textimage"></set>
+          <unset token="show_current_time_image"></unset>
+          <unset token="show_current_time_video"></unset>
+          <unset token="show_current_time_textimage"></unset>
+          <unset token="show_current_time_textvideo"></unset>
+          <unset token="show_weight"></unset>
+          <set token="show_fields">Date,title,Summary,Predict</set>
+        </condition>
+        <condition label="Image">
+          <set token="form.current_time_video"></set>
+          <set token="form.current_time_textimage"></set>
+          <set token="form.current_time_textvideo"></set>
+          <set token="clf_textfield">image</set>
+          <set token="cluster_textfield">image</set>
+          <set token="clean_textfield">image</set>
+          <set token="current_time_textimage"></set>
+          <set token="show_current_time_image">True</set>
+          <unset token="show_current_time_video"></unset>
+          <unset token="show_current_time_textimage"></unset>
+          <unset token="show_current_time_textvideo"></unset>
+          <unset token="show_weight"></unset>
+          <set token="show_fields">Date,feature_img,image,Predict</set>
+        </condition>
+        <condition label="Video">
+          <set token="form.current_time_image"></set>
+          <set token="form.current_time_textimage"></set>
+          <set token="form.current_time_textvideo"></set>
+          <set token="clf_textfield">Movie_Description</set>
+          <set token="cluster_textfield">Movie_Description</set>
+          <set token="clean_textfield">Movie_Description</set>
+          <unset token="show_current_time_image"></unset>
+          <unset token="show_current_time_textimage"></unset>
+          <set token="show_current_time_video">True</set>
+          <unset token="show_current_time_textvideo"></unset>
+          <unset token="show_weight"></unset>
+          <set token="show_fields">Date,title,movie_link,Movie_Description,Predict</set>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.current_time_video"></set>
+          <set token="form.current_time_image"></set>
+          <set token="form.current_time_textvideo"></set>
+          <set token="clf_textfield">data/image</set>
+          <set token="cluster_textfield">data</set>
+          <set token="clean_textfield">data</set>
+          <set token="current_time_image"></set>
+          <unset token="show_current_time_image"></unset>
+          <unset token="show_current_time_video"></unset>
+          <set token="show_current_time_textimage">True</set>
+          <unset token="show_current_time_textvideo"></unset>
+          <set token="show_weight">True</set>
+          <set token="show_fields">Date,feature_img,image,title,Summary,Text_Predict,Image_Predict,Predict</set>
+        </condition>
+        <condition label="Text &amp; Video">
+          <set token="form.current_time_video"></set>
+          <set token="form.current_time_image"></set>
+          <set token="form.current_time_textimage"></set>
+          <set token="clf_textfield">data/Movie_Description</set>
+          <set token="cluster_textfield">data</set>
+          <set token="clean_textfield">data</set>
+          <set token="current_time_image"></set>
+          <unset token="show_current_time_image"></unset>
+          <unset token="show_current_time_video"></unset>
+          <unset token="show_current_time_textimage"></unset>
+          <set token="show_current_time_textvideo">True</set>
+          <set token="show_weight">True</set>
+          <set token="show_fields">Date,movie_link, Movie_Description,title,Summary,Text_Predict,Image_Predict,Predict</set>
+        </condition>
+      </change>
+    </input>
+    <input type="radio" token="model">
+      <label>Models</label>
+      <choice value="avg_vec.mdl">Average Vector</choice>
+      <choice value="LSTM_Simple.h5">LSTM Simple</choice>
+      <choice value="LSTM_with_Multi_Input.h5">LSTM with Multi-Input</choice>
+      <choice value="Bi_GRU.h5">Bi-GRU</choice>
+      <prefix>model=</prefix>
+      <initialValue>LSTM_Simple.h5</initialValue>
+      <default>LSTM_Simple.h5</default>
+    </input>
+    <input type="text" token="limit">
+      <label>Search Limit</label>
+      <default>15000</default>
+      <prefix>| head </prefix>
+    </input>
+    <input type="multiselect" token="news_outlet" depends="$showdatasource$">
+      <label>Select Newspapers</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>%</default>
+    </input>
+    <input type="multiselect" token="news_outlet" rejects="$showdatasource$">
+      <label>COVID Websites (can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <search>
+        <query>index=covid source="/opt/coviddata/text/*" |dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <default>%</default>
+    </input>
+    <input type="text" token="current_time_image" depends="$show_current_time_image$">
+      <label>Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>| where current_time in(</prefix>
+      <suffix>) AND image!=""</suffix>
+    </input>
+    <input type="text" token="current_time_video" depends="$show_current_time_video$">
+      <label>Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>| where current_time in("</prefix>
+      <suffix>") AND movie_desription!="" | rename movie_desription as "Movie_Description"</suffix>
+    </input>
+    <input type="text" token="current_time_textimage" depends="$show_current_time_textimage$">
+      <label>Newspaper Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>AND Summary!=""|   where current_time in (</prefix>
+      <suffix>)| where image!=""</suffix>
+    </input>
+    <input type="text" token="current_time_textvideo" depends="$show_current_time_textvideo$">
+      <label>Newspaper Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>AND Summary!=""|  where current_time in ("</prefix>
+      <suffix>")| where movie_desription!="" | rename movie_desription as "Movie_Description"</suffix>
+    </input>
+    <input type="dropdown" token="text_weight" depends="$show_weight$">
+      <label>Text/Image weights</label>
+      <choice value="100">100 : 0</choice>
+      <choice value="75">75 : 25</choice>
+      <choice value="50">50 : 50</choice>
+      <choice value="25">25 : 75</choice>
+      <choice value="0">0 : 100</choice>
+      <prefix>text_weight=</prefix>
+      <default>50</default>
+    </input>
+    <input type="text" token="text_match">
+      <label>Match Text</label>
+      <prefix>|where like(text,"%</prefix>
+      <suffix>%") </suffix>
+      <initialValue>%</initialValue>
+    </input>
+    <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Total Number of Articles</title>
+        <search base="base_search">
+          <query>| where Predict!=""| stats count(Predict)</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Bar Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.showDataLabels">all</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">1000</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Pie Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | eventstats sum(count) as percentage
+            | eval percentage=round((count/percentage)*100,1)
+            | eval Catagories = Catagories+", "+percentage+"%"
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">650</option>
+      </chart>
+    </panel>
+    <panel>
+      <viz type="punchcard_app.punchcard">
+        <title>Punchcard</title>
+        <search base="clf">
+          <query>
+          | rename Predict as Catagories
+          | stats count by Date,Catagories
+          </query>
+        </search>
+        <option name="height">650</option>
+        <option name="punchcard_app.punchcard.colorMode">sequential</option>
+        <option name="punchcard_app.punchcard.labelRotation">horizontal</option>
+        <option name="punchcard_app.punchcard.maxColor">#d93f3c</option>
+        <option name="punchcard_app.punchcard.minColor">#f7bc38</option>
+        <option name="punchcard_app.punchcard.numOfBins">6</option>
+        <option name="punchcard_app.punchcard.radiusScale">global</option>
+        <option name="punchcard_app.punchcard.useColors">false</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>clf_table</title>
+        <search id="clf" base="base_search">
+          <query>
+          | table $show_fields$</query>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <viz type="scatterplot3d_app.scatter3d">
+        <title>Cluster</title>
+        <search base="base_search">
+          <query>
+            | sort Predict
+            | doc2vec textfield=$cluster_textfield$
+            | getvec textfield=$cluster_textfield$
+            | table Predict, x, y, z
+          </query>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="height">1000</option>
+        <option name="scatterplot3d_app.scatter3d.aspectMode">data</option>
+        <option name="scatterplot3d_app.scatter3d.bgColor">white</option>
+        <option name="scatterplot3d_app.scatter3d.catLimit">40</option>
+        <option name="scatterplot3d_app.scatter3d.colors">#ffbf00	  
+#ffff00	
+#bfff00 
+#80ff00
+#40ff00 
+#00ff00 
+#00ff40
+#00ff80 
+#00ffbf 
+#00ffff
+#00bfff 
+#0080ff 
+#0040ff
+#0000ff 
+#4000ff 
+#8000ff
+#bf00ff 
+#ff00ff 
+#ff00bf
+#ff0080
+#000000</option>
+        <option name="scatterplot3d_app.scatter3d.lineColor">#dc4e41</option>
+        <option name="scatterplot3d_app.scatter3d.lineWidth">1</option>
+        <option name="scatterplot3d_app.scatter3d.opacity">0.9</option>
+        <option name="scatterplot3d_app.scatter3d.rotate">0</option>
+        <option name="scatterplot3d_app.scatter3d.showLegend">1</option>
+        <option name="scatterplot3d_app.scatter3d.size">8</option>
+        <option name="scatterplot3d_app.scatter3d.symbol">circle</option>
+        <option name="scatterplot3d_app.scatter3d.xAspectRatio">1</option>
+        <option name="scatterplot3d_app.scatter3d.yAspectRatio">1</option>
+        <option name="scatterplot3d_app.scatter3d.zAspectRatio">1</option>
+      </viz>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .dashboard-row .dashboard-panel .error-details .error-indicator {
+            display: none; !important;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,239 @@
+<form>
+  <label>Scene Detection</label>
+  <search id="base_search">
+    <query>
+      $search_header$ 
+      | eval auto=$auto$
+      $url$ $current_time$
+      |table title, movie_link
+      | scenedetect textfield=movie_link yolo=$yolo$ clarifai=$clarifai$ model=$model$ confidenceScore=$confidenceScore$
+      | outputlookup scenedetect.csv
+    </query>
+  </search>
+  <fieldset submitButton="true">
+    <input type="radio" token="field1">
+      <label>Search based on</label>
+      <choice value="url">Custom Youtube URL</choice>
+      <choice value="newspaper">Newspaper Search ID</choice>
+      <choice value="covid">Covid Search ID</choice>
+      <change>
+        <condition value="url">
+          <unset token="video_id"></unset>
+          <unset token="report"></unset>
+          <unset token="auto"></unset>
+          <unset token="form.auto"></unset>
+          <set token="showUrl">true</set>
+          <unset token="show_current_time"></unset>
+          <set token="search_header">| makeresults</set>
+          <set token="form.current_time"></set>
+          <set token="current_time"></set>
+        </condition>
+        <condition value="newspaper">
+          <unset token="video_id"></unset>
+          <unset token="report"></unset>
+          <unset token="auto"></unset>
+          <unset token="form.auto"></unset>
+          <set token="show_current_time">true</set>
+          <unset token="showUrl"></unset>
+          <set token="search_header">index=newspaper source="/opt/newspaperdata/videodata/*"| where  news_outlet like ("%")</set>
+          <set token="form.url"></set>
+        </condition>
+        <condition value="covid">
+          <unset token="video_id"></unset>
+          <unset token="report"></unset>
+          <unset token="auto"></unset>
+          <unset token="form.auto"></unset>
+          <set token="show_current_time">true</set>
+          <unset token="showUrl"></unset>
+          <set token="search_header">index=covid source="/opt/coviddata/videodata/*"| where  news_outlet like ("%")</set>
+          <set token="form.url"></set>
+        </condition>
+      </change>
+      <default>url</default>
+    </input>
+    <input type="text" token="url" depends="$showUrl$">
+      <label>Youtube Video URL (e.g. https://www.youtube.com/watch?v=pHdxn4TSDLw)</label>
+      <prefix>| eval movie_link="</prefix>
+      <suffix>"</suffix>
+    </input>
+    <input type="text" token="current_time" depends="$show_current_time$">
+      <label>Media Search ID (One search ID without double quotes)</label>
+      <default></default>
+      <prefix>|where current_time="</prefix>
+      <suffix>"</suffix>
+    </input>
+    <input type="radio" token="yolo">
+      <label>YOLO Object Detection</label>
+      <choice value="True">Yes</choice>
+      <choice value="False">No</choice>
+      <default>False</default>
+    </input>
+    <input type="radio" token="clarifai">
+      <label>Include Image Description</label>
+      <choice value="True">Yes</choice>
+      <choice value="False">No</choice>
+      <change>
+        <condition value="True">
+          <set token="show_models">True</set>
+        </condition>
+        <condition value="False">
+          <unset token="show_models"></unset>
+        </condition>
+      </change>
+      <default>False</default>
+    </input>
+    <input type="radio" token="model" depends="$show_models$">
+      <label>Model</label>
+      <choice value="General">General</choice>
+      <choice value="Demographics">Demographics</choice>
+      <choice value="Travel">Travel</choice>
+      <choice value="Food">Food</choice>
+      <choice value="NSFW">Not suitable for work</choice>
+      <choice value="Apparel">Apparel</choice>
+      <choice value="Celebrity">Celebrity</choice>
+      <choice value="Face">Face</choice>
+      <choice value="Logo">Logo</choice>
+      <choice value="Color">Color</choice>
+      <default>General</default>
+    </input>
+    <input type="text" token="confidenceScore" depends="$show_models$">
+      <label>Confidence Score (between 0 to 1)</label>
+      <default>0.1</default>
+    </input>
+    <input type="checkbox" token="auto">
+      <label>Check before submit</label>
+      <choice value="1">check</choice>
+      <delimiter> </delimiter>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <table>
+        <title>Videos in $form.url$ $form.current_time$ (Click video id)</title>
+        <search id="video_results" base="base_search">
+          <query>| table title, video_id</query>
+        </search>
+        <option name="drilldown">cell</option>
+        <drilldown>
+          <condition field="video_id">
+            <set token="video_id">$click.value2$</set>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$video_id$">
+      <table>
+        <title>Existing reports for video $video_id$ (Click report link)</title>
+        <search>
+          <query>| FindReport video_id = "$video_id$"</query>
+        </search>
+        <option name="drilldown">cell</option>
+        <drilldown>
+          <condition field="report link">
+            <set token="report">$click.value2$</set>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row depends="$video_id$">
+    <panel>
+      <viz id="timeline" type="timeline_app.timeline">
+        <title>Timeline</title>
+        <search base="results">
+          <query>
+            | table scene_number,timecode
+            | eval start_timecode = mvindex(split(timecode," - "),0), end_timecode = mvindex(split(timecode," - "),1)
+            | eval start=strptime(start_timecode,"%H:%M:%S.%3Q"), end = strptime(end_timecode,"%H:%M:%S.%3Q")
+            | eval duration = (end-start)*1000
+            | eval start_timecode = strftime(start, "%Y-%m-%d %H:%M:%S.%3Q")
+            | eval name="Scenes"
+            | table start_timecode, name, scene_number, duration
+            </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">79</option>
+        <option name="timeline_app.timeline.axisTimeFormat">SECONDS</option>
+        <option name="timeline_app.timeline.colorMode">categorical</option>
+        <option name="timeline_app.timeline.maxColor">#DA5C5C</option>
+        <option name="timeline_app.timeline.minColor">#FFE8E8</option>
+        <option name="timeline_app.timeline.numOfBins">6</option>
+        <option name="timeline_app.timeline.tooltipTimeFormat">SECONDS</option>
+        <option name="timeline_app.timeline.useColors">1</option>
+      </viz>
+    </panel>
+  </row>
+  <row depends="$report$">
+    <panel>
+      <title>Original video</title>
+      <html>
+        <div class="center">
+          <video width="800" controls="true" autoplay="true" muted="true">
+            <source src="/static/app/Multimodal/videos/$video_id$/$video_id$.mp4" type="video/mp4"/>
+          </video>
+          <p>
+            <a href="/static/app/Multimodal/videos/$video_id$/$video_id$.mp4" target="_blank">Click here to download the video</a>
+          </p>
+        </div>
+      </html>
+    </panel>
+    <panel>
+      <title>Scene Detection Report</title>
+      <html>
+        <p align="center">
+        <iframe src="$report$" width="800" height="750"/>
+        <p>
+          <a href="$report$" target="_blank">Click here to download the report (Ctrl+S)</a>
+        </p>
+        </p>
+     </html>
+    </panel>
+  </row>
+  <row depends="$video_id$">
+    <panel>
+      <table>
+        <title>Scene Detection Information</title>
+        <search id="results" base="base_search">
+          <query>
+            | where video_id = "$video_id$"
+            | fields - _time, movie_link,video_id,report_name
+            | eval zipped = mvzip(mvzip(mvzip(mvzip(scene_number,timecode), start_frame) , end_frame),description)
+            | table zipped
+            | mvexpand zipped
+            | eval scene_number=mvindex(split(zipped,","),0), timecode=mvindex(split(zipped,","),1),start_frame=mvindex(split(zipped,","),2),end_frame=mvindex(split(zipped,","),3),description=mvindex(split(zipped,","),4)
+            | table scene_number,timecode, start_frame , end_frame,description
+          </query>
+        </search>
+        <drilldown>
+          <condition field="start_frame">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="end_frame">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .input-text {
+          width: 500px !important;
+        }
+        .dashboard-row .dashboard-panel .error-details .error-indicator {
+            display: none; !important;
+        }
+        .center { 
+        margin: 0 auto; 
+        width: 800px; 
+        }
+        #timeline .legend{
+             visibility:hidden !important;
+       }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,117 @@
+<form>
+  <label>1. Generate Twitter Data</label>
+  <!-- Independent Search to Set Multiple Tokens from Single Check Box-->
+  <search>
+    <query>| makeresults 
+ | fields - _time 
+ | eval checkBox=if(isnull($tokShowTextBox|s$),"",$tokShowTextBox|s$) 
+ | eval checkBox=replace(checkBox,"\s",",")
+ | eval tokShowT1=case(match(checkBox,"c1"),"true")
+ | eval tokShowT2=case(match(checkBox,"c2"),"true")
+ | eval tokShowT3=case(match(checkBox,"c3"),"true")
+ </query>
+    <earliest>-1s</earliest>
+    <latest>now</latest>
+    <done>
+      <condition match="$job.resultCount$==0">
+        <unset token="tokShowT1"></unset>
+        <unset token="tokShowT2"></unset>
+        <unset token="showSearchID"></unset>
+      </condition>
+      <condition>
+        <eval token="tokShowT1">case(isnotnull($result.tokShowT1$),"true")</eval>
+        <eval token="tokShowT2">case(isnotnull($result.tokShowT2$),"true")</eval>
+      </condition>
+    </done>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="radio" token="tokShowTextBox" searchWhenChanged="true">
+      <label>Select Input Type</label>
+      <choice value="c2">Keyword</choice>
+      <choice value="c1">User</choice>
+      <change>
+        <!-- Handle Unset all tokens when no Check Box is checked. As independent search will not run -->
+        <condition match="isnull($tokShowT2$)">
+          <set token="form.user"></set>
+          <set token="form.location">all</set>
+        </condition>
+        <condition match="isnull($tokShowT1$)">
+          <set token="form.word"></set>
+          <set token="form.location">all</set>
+        </condition>
+      </change>
+      <default>c2</default>
+    </input>
+    <input type="text" token="user" searchWhenChanged="false" depends="$tokShowT1$">
+      <label>User (e.g. borisjohnson)</label>
+      <default></default>
+    </input>
+    <input type="text" token="word" searchWhenChanged="false" depends="$tokShowT2$">
+      <label>Keyword (e.g. Trump)</label>
+      <default></default>
+    </input>
+    <input type="text" token="bd" searchWhenChanged="false" depends="$tokShowT2$">
+      <label>Begin Date (e.g.2020-04-01)</label>
+      <default>2020-04-01</default>
+    </input>
+    <input type="text" token="ed" searchWhenChanged="false" depends="$tokShowT2$">
+      <label>End Date (e.g. 2020-04-02)</label>
+      <default>2020-04-02</default>
+    </input>
+    <input type="text" token="location" searchWhenChanged="false">
+      <label>Location(e.g. london)</label>
+      <default></default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>  
+    <p>
+<b>Keyword:</b>Results are searched for the occurrences of a keyword. <br/> 
+<b>User:</b> Give any existing user(@user). Do not include @ in the search word. Note, this is not a hashtag. Results are all the tweets from that user's profile page. This also includes all Retweets by that user. <br/> 
+<b>Begin/End Date:</b>  Tweets are scrapped between these dates. The format is YYYY-MM-DD. This filter is available only with a keyword search.<br/> 
+<b>Location:</b> Provide a city name (or, what a user might set as the location for a Tweet). Results in Tweets written from a location. <br/>    
+</p>
+<p>
+Note, only <i>English Language</i> Tweets are currently searched. This page displays <i>only 10 records</i>.
+To view, all records use the table in the <i>Counts Dashboard</i> located at the bottom.
+</p>
+
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showSearchID$">
+      <title>Search ID</title>
+      <html>
+         <center>
+           <h1>search_id=$mytoken$</h1>
+         </center>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Twitter</title>
+        <search>
+          <done>
+            <condition match="$job.resultCount$==0">
+              <unset token="showSearchID"></unset>
+            </condition>
+            <condition match="$job.resultCount$!=0">
+              <set token="mytoken">$result.search_id$</set>
+              <set token="showSearchID">true</set>
+            </condition>
+          </done>
+          <query>| echo user=$user$  word=$word$ bd=$bd$ ed=$ed$ location=$location$|table Tweet search_id</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">100</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

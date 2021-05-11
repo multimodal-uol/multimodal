@@ -1,0 +1,115 @@
+<form>
+  <label>Classification (Twitter)</label>
+  <search id="base_search">
+    <query>
+index=twitter  text!="" |where isnotnull(search_id) $search_id$  
+| table timestamp,text
+| eval temp=split(timestamp,"T")
+| eval Date=mvindex(temp,0)
+| eval Time=mvindex(temp,1)
+| fields - temp
+| eval data=text
+| table Date, text, data
+| cleantext textfield=data mv=false
+| classification textfield=data $model$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range (Please keep the timeframe within 1 day or less)</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input id="search_id" type="text" token="search_id">
+      <label>Twitter Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <prefix>AND search_id in (</prefix>
+      <suffix>) </suffix>
+      <default>"Trump21833"</default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="radio" token="model">
+      <label>Models</label>
+      <choice value="avg_vec.mdl">Average Vector</choice>
+      <choice value="LSTM_Simple.h5">LSTM Simple (recommended)</choice>
+      <choice value="LSTM_with_Multi_Input.h5">LSTM with Multi-Input</choice>
+      <choice value="Bi_GRU.h5">Bi-GRU</choice>
+      <choice value="4">LSTM with Attention (not implemented yet)</choice>
+      <default>LSTM_Simple.h5</default>
+      <prefix>model=</prefix>
+    </input>
+    <input type="text" token="limit">
+      <label>Search limit</label>
+      <default>| head 1000</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <chart>
+        <title>Bar Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">650</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Pie Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">650</option>
+      </chart>
+    </panel>
+    <panel>
+      <viz type="punchcard_app.punchcard">
+        <title>Punchcard</title>
+        <search base="clf">
+          <query>
+          | rename Predict as Catagories
+          | stats count by Date,Catagories
+          </query>
+        </search>
+        <option name="height">650</option>
+        <option name="punchcard_app.punchcard.colorMode">sequential</option>
+        <option name="punchcard_app.punchcard.labelRotation">angle</option>
+        <option name="punchcard_app.punchcard.maxColor">#d93f3c</option>
+        <option name="punchcard_app.punchcard.minColor">#f7bc38</option>
+        <option name="punchcard_app.punchcard.numOfBins">6</option>
+        <option name="punchcard_app.punchcard.radiusScale">global</option>
+        <option name="punchcard_app.punchcard.useColors">false</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>clf_table</title>
+        <search id="clf" base="base_search">
+          <query>
+          | table Date,text,Predict</query>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+</form>

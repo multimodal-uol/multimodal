@@ -1,0 +1,40 @@
+<form>
+  <label>1. Generate Image Data</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="text" token="search_id">
+      <label>Search ID (only one ID)</label>
+    </input>
+    <input type="text" token="totalImages">
+      <label>Maximum Images (e.g. 10,all)</label>
+      <default>5</default>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+         <style>
+           div[data-view="views/shared/appbar/Master"] {
+             background-color: brown;
+             }
+            div[data-role="underline"] {
+             background-color:red;
+            }
+         </style>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Image Search</title>
+        <search>
+          <query>|echo2 search_id=$search_id$ totalImages=$totalImages$|table *</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,157 @@
+<form>
+  <label>9.2 Select number of topics</label>
+  <search id="base_search">
+    <query>
+      |topicmodel test=true start=$start$ end=$end$ step=$step$
+      | eval Coherence = round(Coherence, 2)
+      | eval Perplexity = round(Perplexity, 2)
+      | table *
+    </query>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="text" token="start">
+      <label>Start</label>
+      <default>2</default>
+      <initialValue>2</initialValue>
+    </input>
+    <input type="text" token="end">
+      <label>End</label>
+      <initialValue>22</initialValue>
+    </input>
+    <input type="text" token="step">
+      <label>Step</label>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Recommended Topic Number (Click the number to generate report)</title>
+        <search base="base_search">
+          <query>
+            | rename "Topic number" as cluster
+            | eval score = 200*Coherence-Perplexity-2*cluster
+            | sort 0 - score - Coherence
+            | head 1
+            | table cluster
+          </query>
+        </search>
+        <option name="drilldown">all</option>
+        <drilldown>
+          <link target="_blank">/app/Multimodal/Topic_Model_Generate_Report?form.number=$click.value$</link>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <table>
+        <title>Rank</title>
+        <search base="base_search">
+          <query>
+            | sort -Coherence
+            | table *
+          </query>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Coherence Sore</title>
+        <search base="base_search">
+          <query>| table "Topic number", Coherence</query>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.showDataLabels">minmax</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">306</option>
+      </chart>
+    </panel>
+    <panel>
+      <html>
+        <head>
+        <style>
+        table, th, td {
+          border: 1px solid black;
+          border-collapse: collapse;
+        }
+        th, td {
+          padding: 5px;
+          text-align: left;
+        }
+        </style>
+        </head>
+        <table style="width:60%">
+          <tr>
+            <th>Coherence Score</th>
+            <th>Which means</th>
+          </tr>
+          <tr>
+            <td>0.3</td>
+            <td>bad</td>
+          </tr>
+          <tr>
+            <td>0.4</td>
+            <td>low</td>
+          </tr>
+          <tr>
+            <td>0.55</td>
+            <td>okay</td>
+          </tr>
+          <tr>
+            <td>0.65</td>
+            <td>might be as good as it is going to get</td>
+          </tr>
+          <tr>
+            <td>0.7</td>
+            <td>nice</td>
+          </tr>
+          <tr>
+            <td>0.8</td>
+            <td>unlikely</td>
+          </tr>
+          <tr>
+            <td>0.9</td>
+            <td>probably wrong</td>
+          </tr>
+        </table>
+        <a href="https://stackoverflow.com/questions/54762690/coherence-score-0-4-is-good-or-bad">Ref</a>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Perplexity Score</title>
+        <search base="base_search">
+          <query>| table "Topic number", Perplexity</query>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.showDataLabels">minmax</option>
+        <option name="charting.drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <html>
+        <p>A lower perplexity score indicates better generalization performance.
+        <a href="http://www.cs.columbia.edu/~blei/papers/BleiNgJordan2003.pdf">Ref</a>
+        </p>
+        <p>
+          <img src="https://latex.codecogs.com/gif.latex?perplexity(D_{test})=exp\Big\{-\frac{\sum_{d=1}^{M}log[p(\textbf{w}_d)]}{\sum_{d=1}^{M}N_d}\Big\}" title="perplexity(D_{test})=exp\Big\{-\frac{\sum_{d=1}^{M}log[p(\textbf{w}_d)]}{\sum_{d=1}^{M}N_d}\Big\}" />
+        </p>
+      </html>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .dashboard-row .dashboard-panel .error-details .error-indicator {
+            display: none; !important;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

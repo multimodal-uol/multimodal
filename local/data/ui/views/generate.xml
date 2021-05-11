@@ -1,0 +1,160 @@
+<form>
+  <label>1. Generate Twitter Data</label>
+  <!-- Independent Search to Set Multiple Tokens from Single Check Box-->
+  <search>
+    <query>| makeresults 
+ | fields - _time a
+ | eval checkBox=if(isnull($tokShowTextBox|s$),"",$tokShowTextBox|s$) 
+ | eval checkBox=replace(checkBox,"\s",",")
+ | eval tokShowT1=case(match(checkBox,"c1"),"true")
+ | eval tokShowT2=case(match(checkBox,"c2"),"true")
+ | eval tokShowT3=case(match(checkBox,"c3"),"true")
+ </query>
+    <earliest>-1s</earliest>
+    <latest>now</latest>
+    <done>
+      <condition match="$job.resultCount$==0">
+        <unset token="tokShowT1"></unset>
+        <unset token="tokShowT2"></unset>
+        <unset token="showSearchID"></unset>
+        <unset token="showErrror"></unset>
+      </condition>
+      <condition>
+        <eval token="tokShowT1">case(isnotnull($result.tokShowT1$),"true")</eval>
+        <eval token="tokShowT2">case(isnotnull($result.tokShowT2$),"true")</eval>
+      </condition>
+    </done>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="checkbox" token="testing" searchWhenChanged="false">
+      <label>If checked data is not indexed</label>
+      <choice value="True">Testing</choice>
+      <change>
+        <condition value="True">
+          <unset token="form.word"></unset>
+          <unset token="form.user"></unset>
+        </condition>
+        <condition>
+          <set token="testing">False</set>
+          <unset token="form.word"></unset>
+          <unset token="form.user"></unset>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+      <initialValue>True</initialValue>
+    </input>
+    <input type="radio" token="tokShowTextBox" searchWhenChanged="true">
+      <label>Select Input Type</label>
+      <choice value="c2">Keyword</choice>
+      <choice value="c1">User</choice>
+      <change>
+        <!-- Handle Unset all tokens when no Check Box is checked. As independent search will not run -->
+        <condition match="isnull($tokShowT2$)">
+          <set token="form.user"></set>
+          <set token="form.location">UK</set>
+        </condition>
+        <condition match="isnull($tokShowT1$)">
+          <set token="form.word"></set>
+          <set token="form.location">UK</set>
+        </condition>
+      </change>
+      <default>c2</default>
+    </input>
+    <input type="text" token="user" searchWhenChanged="false" depends="$tokShowT1$">
+      <label>User (e.g. borisjohnson)</label>
+      <default></default>
+    </input>
+    <input type="text" token="word" searchWhenChanged="false" depends="$tokShowT2$">
+      <label>Keyword (e.g. Biden, JoeSPACEBiden)</label>
+      <default></default>
+    </input>
+    <input type="text" token="bd" searchWhenChanged="false">
+      <label>Begin Date (yyyy-mm-dd)</label>
+      <default>2020-10-25</default>
+    </input>
+    <input type="text" token="ed" searchWhenChanged="false">
+      <label>End Date (yyyy-mm-dd)</label>
+      <default>2020-10-26</default>
+    </input>
+    <input type="text" token="limit">
+      <label>Limit Number of Tweets (e.g. 100, all)</label>
+      <default>100</default>
+    </input>
+    <input type="text" token="location" searchWhenChanged="false">
+      <label>Location(e.g. london, all)</label>
+      <default>UK</default>
+      <initialValue>UK</initialValue>
+    </input>
+    <input type="text" token="userName">
+      <label>Label (e.g. 4July)</label>
+      <default>anonymous</default>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>  
+      <p>
+<b style="color:red;">IMPORTANT: </b> Please keep the data generation timeframe within 1 to 2 days (for keywords which may contain large number of Tweets). Multiple data generation with smaller date ranges can be combined to generate reports. 
+</p>
+    <p>
+      <b>$word$</b>
+<b>Keyword:</b> Results are searched for the occurrences of a keyword. <br/> 
+<b>User:</b> Provide any existing user(i.e. @user, as it appears in Twitter). Do not include @ in the search word. Note, this is not a hashtag. Results are all the tweets from that user's profile page. This also includes all Retweets by that user. <br/> 
+<b>Begin/End Date:</b>  Tweets are scrapped between these dates. The format is YYYY-MM-DD. <br/> 
+<b>Location:</b> Provide a city name (or, what a user might set as the location for a Tweet). <br/>    
+</p>
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showSearchID$">
+      <title>Search ID</title>
+      <html>
+         <center>
+           <h1>$mytoken$</h1>
+         </center>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <done>
+            <condition match="$job.resultCount$==0">
+              <unset token="showSearchID"></unset>
+            </condition>
+            <condition match="isnotnull($result.search_id$)">
+              <set token="mytoken">$result.search_id$</set>
+              <set token="showSearchID">true</set>
+            </condition>
+          </done>
+          <progress>
+            <unset token="mytoken"></unset>
+            <unset token="showSearchID"></unset>
+          </progress>
+          <query>|collecttweets testing=$testing$ user=$form.user$ word=$form.word$ bd=$bd$ ed=$ed$ location=$location$ userName=$userName$ limit=$limit$|table *</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">100</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

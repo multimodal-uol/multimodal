@@ -1,0 +1,272 @@
+<form>
+  <label>8. Classification (Twitter)</label>
+  <init>
+    <unset token="show_cluster"></unset>
+  </init>
+  <search id="base_search">
+    <query>
+index=twitter $form.user_filter$  $search_id_prefix$ $form.search_id$ ) $user_query$ $limit$ $text_match$
+| table timestamp,text,img_urls,image
+| eval temp=split(timestamp,"T")
+| eval Date=mvindex(temp,0)
+| eval Time=mvindex(temp,1)
+| fields - temp
+| eval data=text
+| table Date, text, data, img_urls,image
+| cleantext textfield=$clean_textfield$ mv=false
+| classification textfield=$clf_textfield$ $model$ $text_weight$
+| outputlookup clf_results.csv
+| table Date,img_urls,image,text,Text_Predict,Image_Predict,Predict
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+    <done>
+      <set token="show_cluster">True</set>
+    </done>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="radio" token="user_query" searchWhenChanged="false">
+      <label>Source Type</label>
+      <choice value="| where text!=&quot;&quot;">Text</choice>
+      <choice value="| where image!=&quot;&quot;">Image</choice>
+      <choice value="| where isnotnull(image)">Text &amp; Image</choice>
+      <change>
+        <condition label="Text">
+          <set token="cluster_textfield">data</set>
+          <set token="clf_textfield">data</set>
+          <set token="clean_textfield">data</set>
+          <set token="show_text_match">True</set>
+          <set token="show_search_id_text">True</set>
+          <unset token="show_search_id_textimage"></unset>
+          <unset token="show_search_id_image"></unset>
+          <set token="show_fields">Date,text,Predict</set>
+          <unset token="form.model"></unset>
+          <set token="search_item"></set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where isnotnull(search_id) and search_id in (</set>
+        </condition>
+        <condition label="Image">
+          <set token="cluster_textfield">image</set>
+          <set token="clf_textfield">image</set>
+          <set token="clean_textfield">image</set>
+          <unset token="show_text_match"></unset>
+          <set token="form.text_match"></set>
+          <unset token="show_search_id_text"></unset>
+          <set token="show_search_id_image">True</set>
+          <unset token="show_search_id_textimage"></unset>
+          <set token="show_fields">Date,img_urls,image,Predict</set>
+          <unset token="form.model"></unset>
+          <set token="search_item">IMAGE</set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where isnotnull(search_id) and image_search_id in (</set>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="cluster_textfield">data</set>
+          <set token="clf_textfield">data/image</set>
+          <set token="clean_textfield">data</set>
+          <set token="show_text_match">True</set>
+          <unset token="show_search_id_text"></unset>
+          <unset token="show_search_id_image"></unset>
+          <set token="show_search_id_textimage">True</set>
+          <set token="show_fields">Date,img_urls,image,text,Text_Predict,Image_Predict,Predict</set>
+          <unset token="form.model"></unset>
+          <set token="search_item">IMAGE</set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where isnotnull(search_id) and image_search_id in (</set>
+        </condition>
+      </change>
+      <default>| where text!=""</default>
+    </input>
+    <input type="text" token="search_id">
+      <label>Twitter $search_item$ Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <default></default>
+      <change>
+        <unset token="show_cluster"></unset>
+      </change>
+    </input>
+    <input type="radio" token="model">
+      <label>Models</label>
+      <choice value="avg_vec.mdl">Average Vector</choice>
+      <choice value="LSTM_Simple.h5">LSTM Simple (recommended)</choice>
+      <choice value="LSTM_with_Multi_Input.h5">LSTM with Multi-Input</choice>
+      <choice value="Bi_GRU.h5">Bi-GRU</choice>
+      <prefix>model=</prefix>
+    </input>
+    <input type="dropdown" token="text_weight" depends="$show_search_id_textimage$">
+      <label>Text/Image weights</label>
+      <choice value="100">100 : 0</choice>
+      <choice value="75">75 : 25</choice>
+      <choice value="50">50 : 50</choice>
+      <choice value="25">25 : 75</choice>
+      <choice value="0">0 : 100</choice>
+      <prefix>text_weight=</prefix>
+      <default>50</default>
+    </input>
+    <input type="text" token="text_match" depends="$show_text_match$">
+      <label>Match Text</label>
+      <prefix>|where like(text,"%</prefix>
+      <suffix>%") </suffix>
+      <initialValue>%</initialValue>
+    </input>
+     <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+    <input type="text" token="limit">
+      <label>Search Limit</label>
+      <default>15000</default>
+      <prefix>| head </prefix>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Total Number of Tweets</title>
+        <search base="base_search">
+          <query>| where Predict!=""| stats count(Predict)</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Bar Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.showDataLabels">all</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">1000</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Pie Chart</title>
+        <search base="clf">
+          <query>
+            | rename Predict as Catagories
+            | stats count by Catagories
+            | eventstats sum(count) as percentage
+            | eval percentage=round((count/percentage)*100,1)
+            | eval Catagories = Catagories+", "+percentage+"%"
+            | sort - count
+          </query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">650</option>
+      </chart>
+    </panel>
+    <panel>
+      <viz type="punchcard_app.punchcard">
+        <title>Punchcard</title>
+        <search base="clf">
+          <query>
+          | rename Predict as Catagories
+          | stats count by Date,Catagories
+          </query>
+        </search>
+        <option name="height">650</option>
+        <option name="punchcard_app.punchcard.colorMode">sequential</option>
+        <option name="punchcard_app.punchcard.maxColor">#d93f3c</option>
+        <option name="punchcard_app.punchcard.minColor">#f7bc38</option>
+        <option name="punchcard_app.punchcard.numOfBins">6</option>
+        <option name="punchcard_app.punchcard.radiusScale">global</option>
+        <option name="punchcard_app.punchcard.useColors">false</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>clf_table</title>
+        <search id="clf" base="base_search">
+          <query>
+          | table $show_fields$</query>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$show_cluster$">
+    <panel>
+      <viz type="scatterplot3d_app.scatter3d">
+        <title>Cluster</title>
+        <search depends="$show_cluster$">
+          <query>
+            | inputlookup clf_results.csv
+            | sort Predict
+            | doc2vec textfield=$cluster_textfield$
+            | getvec textfield=$cluster_textfield$
+            | table Predict, x, y, z
+          </query>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="height">1000</option>
+        <option name="scatterplot3d_app.scatter3d.aspectMode">data</option>
+        <option name="scatterplot3d_app.scatter3d.bgColor">white</option>
+        <option name="scatterplot3d_app.scatter3d.catLimit">40</option>
+        <option name="scatterplot3d_app.scatter3d.colors">#ffbf00   
+#ffff00 
+#bfff00 
+#80ff00
+#40ff00 
+#00ff00 
+#00ff40
+#00ff80 
+#00ffbf 
+#00ffff
+#00bfff 
+#0080ff 
+#0040ff
+#0000ff 
+#4000ff 
+#8000ff
+#bf00ff 
+#ff00ff 
+#ff00bf
+#ff0080
+#000000</option>
+        <option name="scatterplot3d_app.scatter3d.lineColor">#dc4e41</option>
+        <option name="scatterplot3d_app.scatter3d.lineWidth">1</option>
+        <option name="scatterplot3d_app.scatter3d.opacity">0.9</option>
+        <option name="scatterplot3d_app.scatter3d.rotate">0</option>
+        <option name="scatterplot3d_app.scatter3d.showLegend">1</option>
+        <option name="scatterplot3d_app.scatter3d.size">8</option>
+        <option name="scatterplot3d_app.scatter3d.symbol">circle</option>
+        <option name="scatterplot3d_app.scatter3d.xAspectRatio">1</option>
+        <option name="scatterplot3d_app.scatter3d.yAspectRatio">1</option>
+        <option name="scatterplot3d_app.scatter3d.zAspectRatio">1</option>
+      </viz>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .dashboard-row .dashboard-panel .error-details .error-indicator {
+            display: none; !important;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

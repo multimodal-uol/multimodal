@@ -1,0 +1,306 @@
+<form>
+  <label>2. Explore Newspapers</label>
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Click submit to see results with default selections</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <search id="base_search">
+    <query>
+$datasource$ | where  $news_outlet$  $user_query$ $user_filter$
+    </query>
+    <earliest>$time.earliest$</earliest>Number of Articles By Day (last 30 days)<latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="newspaper">Newspapers</choice>
+      <prefix>index=</prefix>
+      <default>newspaper</default>
+      <delimiter> </delimiter>
+    </input>
+    <input id="user_filter" type="text" token="user_filter">
+      <label>Apply Filter (advanced usage)</label>
+      <prefix> </prefix>
+      <default></default>
+    </input>
+    <input type="radio" token="user_query" searchWhenChanged="false">
+      <label>Source Type</label>
+      <choice value="&quot;title{}&quot;!=&quot;&quot;">Text</choice>
+      <choice value="source=&quot;/opt/newspaperdata/imagedata/*&quot;">Image</choice>
+      <choice value="source=&quot;/opt/newspaperdata/videodata/*&quot;">Video</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <set token="source">source="/opt/newspaperdata/news/*"</set>
+          <set token="showText">true</set>
+          <unset token="showImage"></unset>
+          <unset token="showVideo"></unset>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="source">source="/opt/newspaperdata/imagedata/*"</set>
+          <set token="showImage">true</set>
+          <unset token="showText"></unset>
+          <unset token="showVideo"></unset>
+        </condition>
+        <condition label="Video">
+          <set token="form.textfield">video</set>
+          <set token="source">source="/opt/newspaperdata/videodata/*"</set>
+          <unset token="showImage"></unset>
+          <unset token="showText"></unset>
+          <set token="showVideo">video</set>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="showImage">true</set>
+          <set token="showText">true</set>
+        </condition>
+      </change>
+      <default>"title{}"!=""</default>
+      <prefix>AND </prefix>
+    </input>
+    <input type="text" token="current_time" rejects="$showText$">
+      <label>Media Search ID (One search ID without double quotes)</label>
+      <default>20200908T090616</default>
+    </input>
+    <input type="multiselect" token="news_outlet">
+      <label>Newspapers (can select multiple)</label>
+      <choice value="%">All</choice>
+      <default>%</default>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <delimiter> OR </delimiter>
+      <search>
+        <query>index=newspaper | dedup news_outlet| table news_outlet</query>
+        <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+      </search>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>  
+     
+
+  <p>
+    <hr/>
+ <h2>
+              <b>Search String</b>
+            </h2>
+   $datasource$ | where  $news_outlet$ $user_query$ $user_filter$|join  title [ search $datasource$  | rename "title{}" as title |$news_outlet$] |rename date_published as "Date Published", news_outlet as Publisher, image as "Image Description", "title" as Title, feature_img as "Image Link" | sort - "Date Published"| table "Date Published", Title, Publisher, "Image Description", "Image Link
+      </p>
+   <hr/>
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showText$">
+      <title>Total Number of Articles</title>
+      <single>
+        <search>
+          <query>$datasource$ | where  $news_outlet$ $user_query$ $user_filter$| rename title{} as Title| dedup Title | stats count("Title")|  table count("Title")</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$showImage$">
+      <title>Total Number of Images</title>
+      <single>
+        <search>
+          <query>$datasource$ $user_query$ | where current_time="$current_time$"| where  $user_filter$|  stats count("feature_img")</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$showVideo$">
+      <title>Total Number of Videos</title>
+      <single>
+        <search>
+          <query>$datasource$ $source$ $user_query$ |where current_time=trim("$current_time$")|  where  $user_filter$   $news_outlet$ |  stats count("current_time")</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="height">70</option>
+        <option name="rangeColors">["0x1E9C5D","0x1E9C5D"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel depends="$showImage$">
+      <table>
+        <title>Last Run Image Search IDs and Number of Images</title>
+        <search>
+          <query>$datasource$ $source$ |where isnull(video_link)|  eventstats count(image) by current_time | rename count(image) as "Number of Images", current_time as "Search ID"  | sort - "Search ID" |  dedup "Search ID"| table  "Number of Images" "Search ID"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+    <panel depends="$showVideo$">
+      <table>
+        <title>Last Run Image Search IDs and Number of Videos</title>
+        <search>
+          <query>$datasource$ $source$ |where isnull(feature_img)|  eventstats count(movie_link) by current_time | rename count(movie_link) as "Number of Videos", current_time as "Search ID"  | sort - "Search ID" |  dedup "Search ID"| table  "Number of Videos" "Search ID"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showText$">
+      <title>Number of Articles By Day (last 7 days)</title>
+      <chart>
+        <search base="base_search">
+          <query>| timechart span=24h count |table _time count|rename count as "Article Count"| sort - _time limit=30|rename _time as Time| eval Time = strftime(Time, "%Y-%d-%m")</query>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showText$">
+      <title>Newspaper  Data</title>
+      <table>
+        <title>Latest News on the Top</title>
+        <search>
+          <query>$datasource$ | where  $news_outlet$ $user_query$ $user_filter$|rename date_published as "Date Published", news_outlet as Publisher, "authors{}" as Authors, "keywords{}" as Keywords,  text as News, title{} as Title, article_link as "Article Link" | dedup Title| sort - "Date Published"| table "Date Published", Title,Authors, Publisher, Keywords, Summary, News, "Article Link"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="Article Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showImage$">
+      <html>
+        <center>
+          <img style="padding-top:60px" height="400" src="/static/app/search/$current_time$_2x.png" width="1200" alt="Newspaper Images"/>
+        </center>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showImage$">
+      <title>Clickable Image Thumbnail</title>
+      <html>
+     <ul>
+       <li>
+            <a href="/static/app/search/image_html/$current_time$.htm" target="_none">Click Here for Clickable Image Thumbnails(Needs a Media Search ID)</a>
+          </li>
+     </ul>
+   </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showImage$">
+      <table>
+        <title>Image Analysis</title>
+        <search>
+          <query>$datasource$ $user_query$| where  $user_filter$|where current_time="$current_time$"|rename date_published as "Date Published", news_outlet as Publisher, image as "Image Description", "title" as Title, feature_img as "Image Link",article_link as "Article Link" | sort - "Date Published"| table "Date Published", Title, Publisher, "Image Description", "Image Link", "Article Link"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="Image Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="Article Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showVideo$">
+      <table>
+        <title>Video Analysis</title>
+        <search>
+          <query>$datasource$ $user_query$| where  $news_outlet$  $user_filter$|where current_time="$current_time$"|rename date_published as "Date Published", news_outlet as Publisher, image as "Image Description", movie_desription as "Video Description" "title" as Title, movie_link as "Video Link",article_link as "Article Link" | sort - "Date Published"| table "Date Published", Title, Publisher, "Video Link",  "Video Description" "Article Link"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="Video Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="Article Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showVideo$">
+      <title>Video Thumbnail</title>
+      <html>
+     <ul>
+       <li>
+            <a href="/static/app/search/video/$current_time$.htm" target="_none">Click here (Needs a Media Search ID)</a>
+          </li>
+     </ul>
+   </html>
+    </panel>
+  </row>
+</form>

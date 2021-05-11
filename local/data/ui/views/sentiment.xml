@@ -1,0 +1,415 @@
+<form script="tabledatabar.js" stylesheet="tabledatabar.css" hideEdit="false">
+  <label>5. Sentiment (Doc)</label>
+  <description>Click in panels with (+) for further actions</description>
+  <search id="first_search">
+    <query>
+$datasource$ $form.user_filter$ $search_id_prefix$ $form.search_id$ ) OR $news_outlet$  $current_time$ 
+| $form.master_search$ | sentiment $text_weight$ text image seletced_option=$seletced_option$ | table *
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search base="first_search" id="base_search">
+    <query>
+ | sentiment $text_weight$ text image seletced_option=$seletced_option$ | table *
+    </query>
+  </search>
+  <search base="base_search" id="textfield_count">
+    <query>
+| eval sentiment_negative = sentiment_negative * -1
+| streamstats count AS "$textfield$_count"
+        </query>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="radio" searchWhenChanged="false" token="newssocialcovid">
+      <label>Data Source</label>
+      <choice value="socialnews">Social and News Media</choice>
+      <choice value="covidwebsites">COVID Websites</choice>
+      <change>
+        <condition value="socialnews">
+          <set token="datasource">index=newspaper</set>
+          <set token="showdatasource">true</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.user_filter"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+        <condition value="covidwebsites">
+          <set token="datasource">index=covid</set>
+          <set token="form.user_filter">| where like(text,"%COVID%") OR like(text,"%corona%") OR like("Title","%COVID%") OR like("Title","%corona%") OR like("article_link","%COVID%") OR like("article_link","%corona%")</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="showdatasource"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+      </change>
+      <default>socialnews</default>
+    </input>
+    <input type="checkbox" token="datasource" searchWhenChanged="false" depends="$showdatasource$">
+      <label>Social and News Media</label>
+      <choice value="newspaper">Newspapers</choice>
+      <choice value="twitter">Twitter</choice>
+      <prefix>index=</prefix>
+      <delimiter> OR index=</delimiter>
+      <default>newspaper</default>
+    </input>
+    <input type="radio" token="master_search" searchWhenChanged="false">
+      <label>Source Type*</label>
+      <choice value="where text!=&quot;&quot;| dedup text">Text</choice>
+      <choice value="where  image!=&quot;&quot;">Image</choice>
+      <choice value="where isnotnull(image) and isnotnull(text)">Text &amp; Image</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <unset token="form.current_time"></unset>
+          <unset token="showImage"></unset>
+          <set token="renamefield"></set>
+          <set token="search_item"></set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where search_id in (</set>
+          <set token="seletced_option">get_text</set>
+          <unset token="show_text_image"></unset>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="showImage">True</set>
+          <unset token="form.current_time"></unset>
+          <set token="renamefield">|rename textimage as text |rename image as text</set>
+          <set token="search_item">IMAGE</set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where image_search_id in (</set>
+          <set token="seletced_option">get_image</set>
+          <unset token="show_text_image">false</unset>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.textfield">textimage</set>
+          <unset token="form.current_time"></unset>
+          <set token="showImage">True</set>
+          <set token="renamefield">|rename textimage as text |rename image as text</set>
+          <unset token="form.model"></unset>
+          <set token="search_item">IMAGE</set>
+          <unset token="form.search_id"></unset>
+          <set token="search_id_prefix">|where image_search_id in (</set>
+          <set token="seletced_option">get_text_image</set>
+          <set token="show_text_image">True</set>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="text_weight" depends="$show_text_image$">
+      <label>Text/Image weights</label>
+      <choice value="100">100 : 0</choice>
+      <choice value="75">75 : 25</choice>
+      <choice value="50">50 : 50</choice>
+      <choice value="25">25 : 75</choice>
+      <choice value="0">0 : 100</choice>
+      <prefix>text_weight=</prefix>
+      <default>50</default>
+    </input>
+    <input type="multiselect" token="news_outlet" depends="$showdatasource$">
+      <label>Newspapers (can select multiple)</label>
+      <choice value="%">All</choice>
+      <default>%</default>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+    </input>
+    <input type="multiselect" token="news_outlet" rejects="$showdatasource$">
+      <label>COVID Websites (can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <search>
+        <query>index=covid source="/opt/coviddata/text/*" |dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <default>%</default>
+    </input>
+    <input type="text" token="search_id" depends="$showdatasource$">
+      <label>Twitter $search_item$ Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <default></default>
+    </input>
+    <input type="text" token="current_time" depends="$showdatasource$,$showImage$">
+      <label>Newspaper Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>AND current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="current_time" rejects="$showdatasource$" depends="$showImage$">
+      <label>COVID Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>OR current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+    <html>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+    </html>
+    <input type="text" token="textfield">
+      <label>Text Field</label>
+      <default>text</default>
+    </input>
+    <input type="dropdown" token="neutral" searchWhenChanged="true">
+      <label>Neutral Zone Size</label>
+      <choice value="0.01">Small</choice>
+      <choice value="0.05">Medium</choice>
+      <choice value="0.1">Large</choice>
+      <default>0.05</default>
+      <initialValue>0.05</initialValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Select "Text" badio button and click submit to see results with default selection</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>  
+	  <h1 class="w3-center w3-padding-64">
+          <span class="w3-tag w3-wide">Sentiment Dashboard</span>
+        </h1>
+   <p>Generate an overall sentiment score on a corpus. Spit out the contributing values that make up the score-negative, neutral, and positive. Visualize Sentiment score per text.  Parallel cordinate vizualization helps to show how the overall is leaning towards positive/negative as there are more lines in that area acting as the tie-breaker. </p>
+  </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Average Sentiment</title>
+      <chart>
+        <search base="base_search">
+          <query>| stats avg(sentiment) AS sentiment</query>
+        </search>
+        <option name="charting.chart">radialGauge</option>
+        <option name="charting.chart.rangeValues">[-1,-$neutral$,$neutral$,1]</option>
+        <option name="charting.chart.style">minimal</option>
+        <option name="charting.gaugeColors">["0x9C1E1E","0x1E5D9C","0x5D9C1E"]</option>
+        <option name="height">225</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="base_search">
+          <query>| stats avg(sentiment) AS sentiment
+| eval sentiment = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+| eval color = case(sentiment=="Positive","#5D9C1E", sentiment=="Negative","#9C1E1E", sentiment=="Neutral", "#1E5D9C")</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">133</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">field_value</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">0</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+      <viz type="status_indicator_app.status_indicator">
+        <search base="base_search">
+          <query>| stats avg(sentiment) AS sentiment
+| eval sentiment = round(sentiment, 3)
+| eval color = case(sentiment&gt;$neutral$,"#5D9C1E",sentiment&lt;-$neutral$,"#9C1E1E",true(),"#1E5D9C")</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">133</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="status_indicator_app.status_indicator.colorBy">field_value</option>
+        <option name="status_indicator_app.status_indicator.fillTarget">background</option>
+        <option name="status_indicator_app.status_indicator.fixIcon">warning</option>
+        <option name="status_indicator_app.status_indicator.icon">fix_icon</option>
+        <option name="status_indicator_app.status_indicator.precision">3</option>
+        <option name="status_indicator_app.status_indicator.showOption">3</option>
+        <option name="status_indicator_app.status_indicator.staticColor">#555</option>
+        <option name="status_indicator_app.status_indicator.useColors">true</option>
+        <option name="status_indicator_app.status_indicator.useThousandSeparator">true</option>
+      </viz>
+    </panel>
+    <panel>
+      <title>(+)</title>
+      <chart>
+        <search base="base_search">
+          <query>| eval sentiment = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+| stats count BY sentiment</query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Positive":0x5D9C1E,"Negative":0x9C1E1E,"Neutral":0x1E5D9C}</option>
+        <option name="height">270</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <set token="sentiment_label">$click.value$</set>
+          <set token="specific_textfield">*</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$word_hidden$">
+      <table>
+        <title>Pie Chart Selected Sentiment (+)</title>
+        <search base="textfield_count">
+          <query>| sort -sentiment
+| eval sentiment_label = case(sentiment&gt;$neutral$,"Positive",sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+| search "$textfield$_count" = $specific_textfield$ sentiment_label=$sentiment_label$
+| eval $textfield$=replace($textfield$,"\"","")
+| table "$textfield$" sentiment
+</query>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">cell</option>
+        <format type="color" field="sentiment">
+          <colorPalette type="list">[#9C1E1E,#1E5D9C,#5D9C1E]</colorPalette>
+          <scale type="threshold">-0.05,0.05,1</scale>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/Multimodal/Sentiment_Dictionary?form.word=$click.value$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Neutral Scores</title>
+        <search base="base_search">
+          <query>
+| eval sentiment_negative = sentiment_negative * -1
+| streamstats count AS $textfield$
+| fields $textfield$ sentiment_neutral
+| sample ratio=$sample$
+| table $textfield$ sentiment*
+| streamstats avg(sentiment_neutral) AS avg_sentiment_neutral
+         </query>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.overlayFields">avg_sentiment_neutral</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+      <viz type="parallel_coordinates_app.parallel_coordinates">
+        <title>Parellel Coordinates</title>
+        <search base="base_search">
+          <query>|eval sentiment_negative = sentiment_negative * -1
+|streamstats count AS $textfield$
+|streamstats avg(sentiment) AS avg_sentiment
+|table $textfield$ sentiment sentiment_negative sentiment_positive sentiment_neutral avg_sentiment
+|sample ratio=$sample$</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Sentiment Scores Per $textfield$ (+)</title>
+      <input type="dropdown" token="sample" searchWhenChanged="true">
+        <label>Sample Ratio</label>
+        <choice value="0.01">0.01</choice>
+        <choice value="0.05">0.05</choice>
+        <choice value="0.1">0.1</choice>
+        <choice value="0.15">0.15</choice>
+        <choice value="0.25">0.25</choice>
+        <choice value="0.5">0.5</choice>
+        <choice value="0.75">0.75</choice>
+        <choice value="1">1</choice>
+        <default>0.1</default>
+        <initialValue>0.1</initialValue>
+      </input>
+      <chart>
+        <search base="textfield_count">
+          <query>| fields - sentiment_neutral
+| sample ratio=$sample$
+| table "$textfield$_count" sentiment*
+| rename "$textfield$_count" AS "$textfield$"
+| streamstats avg(sentiment) AS avg_sentiment</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.overlayFields">sentiment,avg_sentiment</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"sentiment_positive":0x5D9C1E,"sentiment_negative":0x9C1E1E,"sentiment":0xec9960}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="height">400</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <set token="specific_textfield">$click.value$</set>
+          <set token="sentiment_label">*</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel rejects="$show_text_image$">
+      <table>
+        <title>Word Sentiment</title>
+        <search base="first_search">
+          <query>| eval origText=$textfield$ | cleantext textfield=$textfield$  | nomv $textfield$ | rex mode=sed field=$textfield$ "s/\n/ /g"| wordsentiment $textfield$ 
+          | table  Negative, Neutral, Positive, "Overall Score", Text, Sentiment
+           | eval Sentiment = round(Sentiment, 3)
+            | eval Category = case(Sentiment&gt;$neutral$,"Positive",Sentiment&lt;-$neutral$,"Negative",true(),"Neutral")
+          
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <format type="color" field="Category">
+          <colorPalette type="map">{"Negative":#ffb3b3,"Neutral":#ccf2ff,"Positive":#c6ffb3}</colorPalette>
+        </format>
+        <format type="color" field="Sentiment">
+          <colorPalette type="list">[#ffb3b3,#ccf2ff,#c6ffb3]</colorPalette>
+          <scale type="threshold">-0.05,0.05</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+</form>

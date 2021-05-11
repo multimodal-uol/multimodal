@@ -1,0 +1,280 @@
+<form>
+  <label>1. (Optional) Generate Newspaper Media Data</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="checkbox" token="testing" searchWhenChanged="false">
+      <label>If checked data is not indexed</label>
+      <choice value="True">Testing/Create Thumbnails</choice>
+      <change>
+        <condition value="True">
+          <set token="form.totalVideos">0</set>
+          <set token="form.totalImages">0</set>
+        </condition>
+        <condition>
+          <set token="testing">False</set>
+          <set token="form.totalVideos">0</set>
+          <set token="form.totalImages">0</set>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+      <initialValue>True</initialValue>
+    </input>
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>i<earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="newspaper">Newspapers</choice>
+      <prefix>index=</prefix>
+      <default>newspaper</default>
+      <delimiter> </delimiter>
+    </input>
+    <input type="radio" token="media" searchWhenChanged="false">
+      <label>Media</label>
+      <choice value="where feature_img !=&quot;&quot;">Image</choice>
+      <choice value="rename &quot;movies{}&quot; as videos |where isnotnull(videos)">Video</choice>
+      <change>
+        <condition label="Image">
+          <set token="retrieveImage">True</set>
+          <set token="retrieveVideo">False</set>
+          <set token="showImage">true</set>
+          <unset token="showVideo"></unset>
+          <set token="media">where feature_img !=""</set>
+          <set token="form.totalImages">0</set>
+        </condition>
+        <condition label="Video">
+          <set token="retrieveImage">False</set>
+          <set token="retrieveVideo">True</set>
+          <set token="showVideo">true</set>
+          <unset token="showImage"></unset>
+          <set token="media">rename "movies{}" as videos |where isnotnull(videos)</set>
+          <set token="form.totalVideos">0</set>
+        </condition>
+      </change>
+      <default>where feature_img !=""</default>
+      <initialValue>|where feature_img !=""</initialValue>
+    </input>
+    <input type="radio" token="model">
+      <label>Model</label>
+      <choice value="General">General</choice>
+      <choice value="Demographics">Demographics</choice>
+      <choice value="Travel">Travel</choice>
+      <choice value="Food">Food</choice>
+      <choice value="NSFW">Not suitable for work</choice>
+      <choice value="Apparel">Apparel</choice>
+      <choice value="Celebrity">Celebrity</choice>
+      <choice value="Face">Face</choice>
+      <choice value="Logo">Logo</choice>
+      <choice value="Color">Color</choice>
+      <default>General</default>
+    </input>
+    <input type="text" token="confidenceScore">
+      <label>Confidence Score (between 0 to 1)</label>
+      <default>0.1</default>
+    </input>
+    <input type="multiselect" token="news_outlet">
+      <label>Newspapers(can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>the Guardian</default>
+    </input>
+    <input type="checkbox" token="addImageDescription" searchWhenChanged="false" depends="$showImage$">
+      <label></label>
+      <choice value="True">Include Image Description (optional)</choice>
+      <prefix>addDescription=</prefix>
+      <change>
+        <condition value="True">
+          <set token="addImageDescription">True</set>
+          <set token="form.totalImages">0</set>
+          <unset token="show_video_dropdown"></unset>
+        </condition>
+        <condition>
+          <set token="addImageDescription">False</set>
+          <set token="form.totalImages">0</set>
+          <unset token="show_video_dropdown"></unset>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+    </input>
+    <input type="checkbox" token="addVideoDescription" searchWhenChanged="false" depends="$showVideo$">
+      <label></label>
+      <choice value="True">Include Video Description (optional)</choice>
+      <prefix>addDescription=</prefix>
+      <change>
+        <condition value="True">
+          <set token="addVideoDescription">True</set>
+          <set token="form.totalVideos">0</set>
+          <set token="show_video_dropdown">true</set>
+        </condition>
+        <condition>
+          <set token="addVideoDescription">False</set>
+          <set token="form.totalImages">0</set>
+          <unset token="show_video_dropdown"></unset>
+        </condition>
+      </change>
+      <delimiter> </delimiter>
+    </input>
+    <input type="dropdown" token="videoParts" depends="$show_video_dropdown$">
+      <label>Divide video into n parts</label>
+      <choice value="1">1</choice>
+      <choice value="3">3</choice>
+      <choice value="4">4</choice>
+      <choice value="5">5</choice>
+      <default>1</default>
+    </input>
+    <input type="text" token="totalImages" depends="$showImage$">
+      <label>Maximum Number of Images (10,all)</label>
+      <default></default>
+    </input>
+    <input type="text" token="totalVideos" depends="$showVideo$">
+      <label>Maximum Number of Videos</label>
+      <default>0</default>
+    </input>
+    <input id="user_filter" type="text" token="user_filter">
+      <label>Apply Filter (advanced usage)</label>
+      <prefix> </prefix>
+      <default></default>
+    </input>
+    <input type="radio" searchWhenChanged="false" token="download">
+      <label>Download Media (Optional)</label>
+      <choice value="doNotDownload">Do Not Download</choice>
+      <choice value="downloadImage">Download Image</choice>
+      <choice value="downloadVideo">Download Video</choice>
+      <change>
+        <condition value="downloadImage">
+          <set token="downloadImage">True</set>
+          <set token="form.totalImages">0</set>
+          <set token="form.totalVideos">0</set>
+        </condition>
+        <condition value="downloadVideo">
+          <set token="downloadVideo">True</set>
+          <set token="form.totalImages">0</set>
+          <set token="form.totalVideos">0</set>
+        </condition>
+        <condition value="doNotDownload">
+          <set token="downloadVideo">False</set>
+          <set token="downloadImage">False</set>
+          <set token="form.totalImages">0</set>
+          <set token="form.totalVideos">0</set>
+        </condition>
+      </change>
+      <default>doNotDownload</default>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showSearchID$">
+      <title>Media Search ID</title>
+      <html>
+         <center>
+           <h1>$mytoken$</h1>
+         </center>
+       </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Media Search Resusts</title>
+        <search>
+          <done>
+            <condition match="$job.resultCount$==0">
+              <unset token="showSearchID"></unset>
+            </condition>
+            <condition match="isnotnull($result.Date_Extracted$)">
+              <set token="mytoken">$result.Date_Extracted$</set>
+              <set token="showSearchID">true</set>
+            </condition>
+          </done>
+          <progress>
+            <unset token="mytoken"></unset>
+            <unset token="showSearchID"></unset>
+          </progress>
+          <query>$datasource$ source="/opt/newspaperdata/news/*" $user_filter$|  $media$
+				|where $news_outlet$  |eval current_time=strftime(now(),"%Y%m%dT%H%M%S") 
+						| rename "title{}" as Title
+						| where Title!=""|table Title text Summary date_published news_outlet feature_img  article_link, current_time videos 
+						|  newsimage testing=$testing$ sourceindex=newspaper retrieveImage=$retrieveImage$  retrieveVideo=$retrieveVideo$ totalImages=$form.totalImages$
+						totalVideos=$form.totalVideos$ addImageDescription=$addImageDescription$ addVideoDescription=$addVideoDescription$ videoParts=$videoParts$
+						confidenceScore=$confidenceScore$ model=$model$ downloadImage=$downloadImage$ downloadVideo=$downloadVideo$ current_time  Title text
+						date_published news_outlet feature_img 
+						article_link videos| rename date_published as "Date Published", news_outlet as Publisher,
+						feature_img as "Image Link", title as Title, image as "Image Description" , 
+						current_time as Date_Extracted, movies as Video, article_link as "Article Link", movie_desription as "Movie Description"
+						| sort - "Date_Published"|  table Title, Publisher, 
+						"Date Published", "Image Description", "Movie Description", Date_Extracted, Video, "Image Link", "Article Link"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <condition field="Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="Video">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="Article Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+          <condition field="Image Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showImage$">
+      <table>
+        <title>Image Thumbnail Generation</title>
+        <search>
+          <query>|thumbnail testing=$testing$ sourceindex=newspaper retrieveImage=$retrieveImage$ search_id=$mytoken$</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <drilldown>
+          <condition field="Link">
+            <link target="_blank">$click.value2|n$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showVideo$">
+      <table>
+        <title>Video Thumbnail Generation</title>
+        <search>
+          <query>|videothumbnail testing=$testing$ sourceindex=newspaper retrieveVideo=$retrieveVideo$ search_id=$mytoken$</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

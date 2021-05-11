@@ -1,0 +1,212 @@
+[app/install/install_source_checksum]
+version = 8.0.2.1
+modtime = 1585148596.544871000
+
+[views/welcome]
+access = read : [ * ], write : [ * ]
+export = none
+owner = nobody
+version = 8.1.0.1
+modtime = 1620042260.529948000
+
+[views/counts]
+version = 8.1.0.1
+modtime = 1620367585.305370000
+
+[views/sentiment]
+version = 8.1.0.1
+modtime = 1620371504.857906000
+
+[views/similarity]
+version = 8.1.0.1
+modtime = 1609842936.157467000
+
+[views/classification]
+version = 8.0.4
+modtime = 1591891952.046344000
+
+[views/named_entity_themes]
+version = 8.1.0.1
+modtime = 1620367738.194692000
+
+[views/cluster_themes]
+version = 8.1.0.1
+modtime = 1620367909.033276000
+
+[nav/default]
+version = 8.1.0.1
+modtime = 1618147517.808289000
+
+[views/generate]
+access = read : [ * ], write : [ * ]
+export = none
+owner = nobody
+version = 8.1.0.1
+modtime = 1619710241.237083000
+
+[views/exploretweets]
+version = 8.1.0.1
+modtime = 1620468360.046397000
+
+[views/twittermetadata]
+version = 8.1.0.1
+modtime = 1620366345.865765000
+
+[views/imagegenerate]
+version = 8.1.0.1
+modtime = 1620372406.286275000
+
+[views/explore_newspapers]
+version = 8.1.0.1
+modtime = 1620293476.960678000
+
+[views/generate_news_image]
+access = read : [ user ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1614939397.038742000
+
+[indexes/demo]
+owner = zif
+version = 8.0.2.1
+modtime = 1591363903.997693000
+
+[views/Classification_test]
+access = read : [ * ], write : [ * ]
+export = none
+owner = zif
+version = 8.0.6
+modtime = 1605173634.322060000
+
+[indexes/textindex]
+owner = zif
+version = 8.0.5
+modtime = 1598514052.773604000
+
+[indexes/newspaper]
+owner = zif
+version = 8.0.6
+modtime = 1602057357.540647000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fnewspaperdata%2Fnews%2F2020-10-06.json]
+owner = zif
+version = 8.0.6
+modtime = 1602057360.643418000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fnewspaperdata%2Fnews]
+owner = zif
+version = 8.0.6
+modtime = 1602057399.135378000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fnewspaperdata%2Fimagedata]
+owner = zif
+version = 8.0.6
+modtime = 1602261022.097197000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fnewspaperdata%2Fvideodata]
+owner = zif
+version = 8.0.6
+modtime = 1602261081.347745000
+
+[views/Twitter_Classification]
+access = read : [ * ], write : [ * ]
+export = none
+owner = zif
+version = 8.1.0.1
+modtime = 1620368080.295455000
+
+[views/Newspaper_Classification]
+access = read : [ * ]
+export = none
+owner = zif
+version = 8.1.0.1
+modtime = 1620333807.201955000
+
+[views/explore_covid_website]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1618380827.404236000
+
+[indexes/covid]
+owner = zif
+version = 8.1.0.1
+modtime = 1606232045.851634000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fcoviddata%2Ftext]
+owner = zif
+version = 8.1.0.1
+modtime = 1606232052.725540000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fcoviddata%2Fimagedata]
+owner = zif
+version = 8.1.0.1
+modtime = 1606470327.031111000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fcoviddata%2Fvideodata]
+owner = zif
+version = 8.1.0.1
+modtime = 1606470481.989024000
+
+[indexes/twitter]
+owner = zif
+version = 8.1.0.1
+modtime = 1607249250.410849000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Ftwitterdata%2Ftweets%2Fmodi00152.json]
+owner = zif
+version = 8.1.0.1
+modtime = 1607249254.729017000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Ftwitterdata%2Ftweets]
+owner = zif
+version = 8.1.0.1
+modtime = 1609584586.437695000
+
+[views/Sentiment_Dictionary]
+access = read : [ * ], write : [ * ]
+export = none
+owner = zif
+version = 8.1.0.1
+modtime = 1613559485.643828000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Ftwitterdata%2Fimagedata]
+owner = zif
+version = 8.1.0.1
+modtime = 1610704435.616267000
+
+[views/Topic_Model_Explore_Data]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1620370273.754028000
+
+[views/Topic_Model_Select_number]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1616677516.629925000
+
+[views/Topic_Model_Generate_Report]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1616677761.587256000
+
+[views/Scene_Detection]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1619169835.862383000
+
+[views/img_table]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = zif
+version = 8.1.0.1
+modtime = 1617217162.107103000

@@ -1,0 +1,140 @@
+<form>
+  <label>6. Twitter Metadata Analytics</label>
+  <search id="base_search">
+    <query>
+$datasource$ $search_id$ $user_filter$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="checkbox" token="datasource">
+      <label>Data Source</label>
+      <choice value="twitter">Twitter</choice>
+      <prefix>index=</prefix>
+      <default>twitter</default>
+      <delimiter> </delimiter>
+      <suffix>|dedup text</suffix>
+    </input>
+    <input id="search_id" type="text" token="search_id">
+      <label>Search ID</label>
+      <prefix>|where search_id in (</prefix>
+      <suffix>)</suffix>
+      <default></default>
+      <initialValue>*</initialValue>
+    </input>
+    <input id="user_filter" type="text" token="user_filter">
+      <label>Apply Filter</label>
+      <default></default>
+    </input>
+  </fieldset>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Help</title>
+      <html>  
+       <h1 class="w3-center w3-padding-64">
+          <span class="w3-tag w3-wide">Twitter Metadata Analysis</span>
+        </h1>
+	<p>Generate reports based on Tweet Hashtags, User Name, Retweets, Likes, and Replies. This dashboard does NOT analyze actual Tweet texts. </p> 	
+</html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Who has posted the most tweets</title>
+      <chart>
+        <search>
+          <query>$datasource$ $search_id$ $user_filter$| top screen_name</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Average number of retweets, likes and replies by date</title>
+      <chart>
+        <search>
+          <query>$datasource$ $search_id$ $user_filter$| timechart span=24h  avg(retweets) as Retweets avg(likes) as Likes avg(replies) as Replies</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Number of times tweet is an reply to, tweet is replied to by date</title>
+      <chart>
+        <search>
+          <query>$datasource$ $search_id$ $user_filter$| timechart span=24h  count(eval(is_replied="false")) as "Tweet is an reply to"  count(eval(is_replied="true")) as "Tweet is replied to" | sort - _time, "Tweet is an reply to", "Tweet is an reply to"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>If a media attached to tweets by date</title>
+      <chart>
+        <search>
+          <query>$datasource$ $search_id$ $user_filter$|rename "img_urls{}" as url | timechart span=24h   count(eval(isnull(url))) as "No Media"  count(eval(isnotnull(url))) as "Media" | sort - _time
+          ,</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Top Hashtags</title>
+      <chart>
+        <search>
+          <query>$datasource$ $search_id$ $user_filter$|rename "hashtags{}" as Hashtag | where Hashtag!="" | mvexpand Hashtag|top  Hashtag</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,69 @@
+<form>
+  <label>9.3 Generate Report</label>
+  <search id="base_search">
+    <query>
+      | topicmodel test=false num_topics=$number$
+    </query>
+    <progress>
+        <unset token="filename"/>
+    </progress>
+    <done>
+      <set token="filename">$result.filename$</set>
+    </done>
+  </search>
+  <fieldset submitButton="true">
+    <input type="text" token="number" searchWhenChanged="false">
+      <label>Number of Topics</label>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Coherence</title>
+        <search base="base_search">
+          <query>| table Coherence</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="rangeColors">["0xdc4e41","0xf1813f","0xf8be34","0x006d9c","0x28a428","0x0f3e0f","0x000000"]</option>
+        <option name="rangeValues">[0.4,0.55,0.65,0.7,0.8,0.9]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Perplexity</title>
+        <search base="base_search">
+          <query>| table Perplexity</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+      </single>
+    </panel>
+  </row>
+  <row depends="$filename$">
+    <panel>
+      <title>pyLDAvis Report</title>
+      <html>
+            <iframe src="/static/app/Multimodal/reports/$filename$" width="1500" height="750"/>
+            <p>
+            <a href="/static/app/Multimodal/reports/$filename$" target="_none">Click here to download the report (Ctrl+S)</a>
+            </p>
+     </html>
+    </panel>
+  </row>
+  <row depends="noshow">
+    <panel>
+      <html>
+      <style>
+        .dashboard-row .dashboard-panel .error-details .error-indicator {
+            display: none; !important;
+        }
+      </style>
+    </html>
+    </panel>
+  </row>
+</form>

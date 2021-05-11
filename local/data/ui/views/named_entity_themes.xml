@@ -1,0 +1,589 @@
+<form hideEdit="false">
+  <label>4. Named Entities and Parts of Speech</label>
+  <search id="base_search">
+    <query>
+      $datasource$  $form.user_filter$ | $form.master_search$ |where isnotnull(search_id) $search_id$ $addprefix$ $image_search_id$OR $news_outlet$ $current_time$
+      $renamefield$| table text
+      $mode$
+    </query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search id="pos_filter" base="base_search">
+    <query>
+      | eval ne = mvzip(tag,'text',",")
+      | eval ne = mvfilter(match(ne,"$pos_tag$,"))
+      | eval ne = mvfilter(!match(ne,"$stopwords$")) 
+      | rex field=ne mode=sed "s/[^,]+,([A-Za-z]+)/\1/"
+      | eval ribbon = if(mvcount(ne)&gt;1,"co-occurence","singular")
+      | eval outer = ne
+      | stats count by ne outer ribbon
+      | where NOT (ne==outer AND ribbon=="co-occurence")
+      | eventstats sum(count) AS total_ribbon by ne ribbon
+      | eventstats sum(count) AS total by ne
+      | sort -total
+      | eval perc_of_total = count/total_ribbon
+      | streamstats dc(total) AS order
+      | where order&lt;=$num_ne$ AND perc_of_total&gt;=$zone$
+    </query>
+  </search>
+  <search id="ne_filter" base="base_search">
+    <query>
+      | eval ne = mvzip(tag,'text',",")
+      | eval ne = mvfilter(match(ne,"$ne_tag$,"))
+      | eval ne = mvfilter(!match(ne,"$stopwords$")) 
+      | rex field=ne mode=sed "s/[^,]+,([A-Za-z]+)/\1/"
+      | eval ribbon = if(mvcount(ne)&gt;1,"co-occurence","singular")
+      | eval outer = ne
+      | stats count by ne outer ribbon
+      | where NOT (ne==outer AND ribbon=="co-occurence")
+      | eventstats sum(count) AS total_ribbon by ne ribbon
+      | eventstats sum(count) AS total by ne
+      | sort -total
+      | eval perc_of_total = count/total_ribbon
+      | streamstats dc(total) AS order
+      | where order&lt;=$num_ne$ AND perc_of_total&gt;=$zone$
+    </query>
+  </search>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time">
+      <label>Time Range</label>
+      <default>
+        <earliest>-1d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="radio" searchWhenChanged="false" token="newssocialcovid">
+      <label>Data Source</label>
+      <choice value="socialnews">Social and News Media</choice>
+      <choice value="covidwebsites">COVID Websites</choice>
+      <change>
+        <condition value="socialnews">
+          <set token="datasource">index=newspaper</set>
+          <set token="showdatasource">true</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.user_filter"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+        <condition value="covidwebsites">
+          <set token="datasource">index=covid| dedup text</set>
+          <set token="form.user_filter">| where like(text,"%COVID%") OR like(text,"%corona%") OR like("Title","%COVID%") OR like("Title","%corona%") OR like("article_link","%COVID%") OR like("article_link","%corona%")</set>
+          <unset token="form.news_outlet"></unset>
+          <unset token="showdatasource"></unset>
+          <unset token="form.current_time"></unset>
+          <unset token="form.master_search"></unset>
+        </condition>
+      </change>
+      <default>socialnews</default>
+    </input>
+    <input type="checkbox" token="datasource" searchWhenChanged="false" depends="$showdatasource$">
+      <label>Social and News Media</label>
+      <choice value="newspaper">Newspapers</choice>
+      <choice value="twitter">Twitter</choice>
+      <prefix>index=</prefix>
+      <delimiter> OR index=</delimiter>
+      <default>newspaper</default>
+    </input>
+    <input type="radio" token="master_search" searchWhenChanged="false">
+      <label>Source Type*</label>
+      <choice value="where text!=&quot;&quot;|dedup text">Text</choice>
+      <choice value="where  image!=&quot;&quot; | dedup text">Image</choice>
+      <choice value="eval textimage = toString(text) + &quot;;&quot; + toString(image) |makemv delim=&quot;;&quot; textimage |mvexpand textimage| where textimage !=&quot;Null&quot; and isnotnull(textimage)">Text &amp; Image</choice>
+      <change>
+        <condition label="Text">
+          <set token="form.textfield">text</set>
+          <unset token="form.current_time"></unset>
+          <unset token="showImage"></unset>
+          <set token="renamefield"></set>
+          <set token="showtext">True</set>
+          <set token="addprefix"></set>
+          <set token="form.image_search_id"></set>
+        </condition>
+        <condition label="Image">
+          <set token="form.textfield">image</set>
+          <set token="showImage">True</set>
+          <unset token="form.current_time"></unset>
+          <unset token="showtext"></unset>
+          <set token="renamefield">|rename textimage as text |rename image as text</set>
+          <set token="addprefix">AND</set>
+          <set token="form.search_id"></set>
+        </condition>
+        <condition label="Text &amp; Image">
+          <set token="form.textfield">textimage</set>
+          <unset token="form.current_time"></unset>
+          <set token="showImage">True</set>
+          <set token="showtext">True</set>
+          <set token="renamefield">|rename textimage as text</set>
+          <set token="addprefix">OR</set>
+        </condition>
+      </change>
+    </input>
+    <input type="multiselect" token="news_outlet" depends="$showdatasource$">
+      <label>Select Newspapers</label>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <search>
+        <query>index=newspaper|dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <default>%</default>
+    </input>
+    <input type="multiselect" token="news_outlet" rejects="$showdatasource$">
+      <label>COVID Websites (can select multiple)</label>
+      <delimiter> OR </delimiter>
+      <search>
+        <query>index=covid source="/opt/coviddata/text/*" |dedup news_outlet|sort + news_outlet| table news_outlet</query>
+      </search>
+      <choice value="%">All</choice>
+      <valuePrefix>news_outlet like ("</valuePrefix>
+      <valueSuffix>")</valueSuffix>
+      <fieldForLabel>news_outlet</fieldForLabel>
+      <fieldForValue>news_outlet</fieldForValue>
+      <default>%</default>
+    </input>
+    <input id="search_id" type="text" token="search_id" depends="$showdatasource$,$showtext$">
+      <label>Twitter Search ID e.g.: "id1" (for one ID) "id1","id2" (for multiple IDs). One or multiple IDs, comma separated and each ID within double quotes.</label>
+      <prefix>AND search_id in (</prefix>
+      <suffix>) </suffix>
+      <default></default>
+      <initialValue>*</initialValue>
+    </input>
+    <input id="image_search_id" type="text" token="image_search_id" depends="$showdatasource$,$showImage$">
+      <label>Twitter Image Search (usage same Search ID)</label>
+      <prefix>image_search_id in (</prefix>
+      <suffix>) </suffix>
+      <default></default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="text" token="current_time" depends="$showdatasource$,$showImage$">
+      <label>Newspaper Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>OR current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="current_time" rejects="$showdatasource$" depends="$showImage$">
+      <label>COVID Media Search ID (usage same Search ID)</label>
+      <default></default>
+      <prefix>OR current_time in (</prefix>
+      <suffix>) AND isnotnull(image)</suffix>
+    </input>
+    <input type="text" token="user_filter">
+      <label>Apply Filters (advanced usage)</label>
+      <default></default>
+    </input>
+    <html>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+      <p/>
+    </html>
+    <input type="text" token="textfield">
+      <label>Text Field</label>
+      <default>text</default>
+    </input>
+    <input type="dropdown" token="num_ne" searchWhenChanged="true">
+      <label>#Named Entities</label>
+      <choice value="5">5</choice>
+      <choice value="6">6</choice>
+      <choice value="7">7</choice>
+      <choice value="8">8</choice>
+      <choice value="9">9</choice>
+      <choice value="10">10</choice>
+      <choice value="11">11</choice>
+      <choice value="12">12</choice>
+      <choice value="13">13</choice>
+      <choice value="14">14</choice>
+      <choice value="15">15</choice>
+      <choice value="16">16</choice>
+      <choice value="17">17</choice>
+      <choice value="18">18</choice>
+      <choice value="19">19</choice>
+      <choice value="20">20</choice>
+      <default>10</default>
+    </input>
+    <input type="dropdown" token="zone" searchWhenChanged="true">
+      <label>Link Zone Size</label>
+      <choice value="0.1">Very Small</choice>
+      <choice value="0.04">Small</choice>
+      <choice value="0.02">Medium</choice>
+      <choice value="0.005">Large</choice>
+      <choice value="0.0001">Very Large</choice>
+      <default>0.02</default>
+      <initialValue>0.02</initialValue>
+    </input>
+    <input type="radio" token="mode" searchWhenChanged="false">
+      <label>Mode</label>
+      <choice value="| cleantext textfield=text base_type=lemma_pos remove_stopwords=t term_min_len=2">Parts of Speech</choice>
+      <choice value="| mycommand  textfield=text">Named Entities</choice>
+      <default>| mycommand  textfield=text</default>
+      <initialValue>| cleantext textfield=text base_type=lemma_pos remove_stopwords=t term_min_len=2</initialValue>
+      <change>
+        <condition value="| cleantext textfield=text base_type=lemma_pos remove_stopwords=t term_min_len=2">
+          <set token="show_pos">true</set>
+          <unset token="show_ne"></unset>
+        </condition>
+        <condition value="| cleantext textfield=image base_type=lemma_pos remove_stopwords=t term_min_len=2">
+          <set token="show_pos">true</set>
+          <unset token="show_ne"></unset>
+        </condition>
+        <condition value="| mycommand  textfield=text">
+          <set token="show_ne">true</set>
+          <unset token="show_pos"></unset>
+        </condition>
+      </change>
+    </input>
+    <input type="multiselect" token="pos_tag" depends="$show_pos$" searchWhenChanged="false">
+      <label>POS Tag</label>
+      <choice value="?">ALL</choice>
+      <choice value="$">dollar</choice>
+      <choice value="CC">Coordinating conjunction</choice>
+      <choice value="CD">Cardinal number</choice>
+      <choice value="DT">Determiner</choice>
+      <choice value="EX">Existential there</choice>
+      <choice value="FW">Foreign word</choice>
+      <choice value="IN">Preposition or subordinating conjunction</choice>
+      <choice value="JJ">Adjective</choice>
+      <choice value="JJR">Adjective, comparative</choice>
+      <choice value="JJS">Adjective, superlative</choice>
+      <choice value="LS">List item marker</choice>
+      <choice value="MD">Modal</choice>
+      <choice value="NN">Noun, singular or mass</choice>
+      <choice value="NNS">Noun, plural</choice>
+      <choice value="NNP">Proper noun, singular</choice>
+      <choice value="NNPS">Proper noun, plural</choice>
+      <choice value="PDT">Predeterminer</choice>
+      <choice value="POS">Possessive ending</choice>
+      <choice value="PRP">Personal pronoun</choice>
+      <choice value="PRP$">Possessive pronoun</choice>
+      <choice value="RB">Adverb</choice>
+      <choice value="RBR">Adverb, comparative</choice>
+      <choice value="RBS">Adverb, superlative</choice>
+      <choice value="RP">Particle</choice>
+      <choice value="SYM">Symbol</choice>
+      <choice value="TO">to</choice>
+      <choice value="UH">Interjection</choice>
+      <choice value="VB">Verb, base form</choice>
+      <choice value="VBD">Verb, past tense</choice>
+      <choice value="VBG">Verb, gerund or present participle</choice>
+      <choice value="VBN">Verb, past participle</choice>
+      <choice value="VBP">Verb, non-3rd person singular present</choice>
+      <choice value="VBZ">Verb, 3rd person singular present</choice>
+      <choice value="WDT">Wh-determiner</choice>
+      <choice value="WP">Wh-pronoun</choice>
+      <choice value="WP$">Possessive wh-pronoun</choice>
+      <choice value="WRB">Wh-adverb</choice>
+      <initialValue>NNP</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <delimiter>|</delimiter>
+    </input>
+    <input type="multiselect" token="ne_tag" depends="$show_ne$" searchWhenChanged="false">
+      <label>NE Tag</label>
+      <choice value="?">ALL</choice>
+      <choice value="CARDINAL">CARDINAL</choice>
+      <choice value="DATE">DATE</choice>
+      <choice value="EVENT">EVENT</choice>
+      <choice value="FAC">FAC</choice>
+      <choice value="GPE">GPE</choice>
+      <choice value="LANGUAGE">LANGUAGE</choice>
+      <choice value="LAW">LAW</choice>
+      <choice value="LOC">LOC</choice>
+      <choice value="MONEY">MONEY</choice>
+      <choice value="NORP">NORP</choice>
+      <choice value="ORDINAL">ORDINAL</choice>
+      <choice value="ORG">ORG</choice>
+      <choice value="PERCENT">PERCENT</choice>
+      <choice value="PERSON">PERSON</choice>
+      <choice value="PRODUCT">PRODUCT</choice>
+      <choice value="QUANTITY">QUANTITY</choice>
+      <choice value="TIME">TIME</choice>
+      <choice value="WORK_OF_ART">WORK_OF_ART</choice>
+      <initialValue>PERSON</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <delimiter>|</delimiter>
+    </input>
+    <input type="text" token="stopwords">
+      <label>Stopwords (vertical bar separated)</label>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <default>?!.*</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+      <h1>
+         <b style="color:red;">Select "Text" badio button and click submit to see results with default selection</b>
+        </h1>
+      </html>
+    </panel>
+  </row>
+  <row depends="$no_show$">
+    <panel>
+      <html>
+        <style>
+          div[data-view="views/shared/appbar/Master"] {
+            background-color: brown;
+            }
+           div[data-role="underline"] {
+            background-color:white;
+           }
+        </style>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Help</title>
+      <html>  
+	  <h1 class="w3-center w3-padding-64">
+          <span class="w3-tag w3-wide">Named Entity and Parts of Speech Analysis</span>
+        </h1>
+   <p>Identify Named Entity and parts-of-speech. Visulaize the term importance and their connections.</p>
+   
+     </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_pos$">
+      <title>Importance</title>
+      <viz type="viz_halo.halo">
+        <search base="pos_filter">
+          <query>
+            | eval ribbon_color = if(ribbon=="co-occurence","#9C1E5D","#1E5D9C")
+            | table count ne outer ribbon ribbon_color
+            | rename ne AS inner
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">900</option>
+        <option name="refresh.display">progressbar</option>
+      </viz>
+    </panel>
+    <panel depends="$show_ne$">
+      <title>Importance</title>
+      <viz type="viz_halo.halo">
+        <search base="ne_filter">
+          <query>
+            | eval ribbon_color = if(ribbon=="co-occurence","#9C1E5D","#1E5D9C")
+            | table count ne outer ribbon ribbon_color
+            | rename ne AS inner
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">900</option>
+        <option name="refresh.display">progressbar</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>  
+      <br/>
+
+  
+  </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_pos$">
+      <title>Connections</title>
+      <viz type="sankey_diagram_app.sankey_diagram">
+        <search base="pos_filter">
+          <query>
+            | sort -count
+            | table ne outer count
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">600</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="sankey_diagram_app.sankey_diagram.colorMode">categorical</option>
+        <option name="sankey_diagram_app.sankey_diagram.maxColor">#3fc77a</option>
+        <option name="sankey_diagram_app.sankey_diagram.minColor">#d93f3c</option>
+        <option name="sankey_diagram_app.sankey_diagram.numOfBins">6</option>
+        <option name="sankey_diagram_app.sankey_diagram.showBackwards">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.showLabels">true</option>
+        <option name="sankey_diagram_app.sankey_diagram.showLegend">true</option>
+        <option name="sankey_diagram_app.sankey_diagram.showSelf">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.showTooltip">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.styleBackwards">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.useColors">true</option>
+      </viz>
+    </panel>
+    <panel depends="$show_ne$">
+      <title>Connections</title>
+      <viz type="sankey_diagram_app.sankey_diagram">
+        <search base="ne_filter">
+          <query>
+            | sort -count
+            | table ne outer count
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">600</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="sankey_diagram_app.sankey_diagram.colorMode">categorical</option>
+        <option name="sankey_diagram_app.sankey_diagram.maxColor">#3fc77a</option>
+        <option name="sankey_diagram_app.sankey_diagram.minColor">#d93f3c</option>
+        <option name="sankey_diagram_app.sankey_diagram.numOfBins">6</option>
+        <option name="sankey_diagram_app.sankey_diagram.showBackwards">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.showLabels">true</option>
+        <option name="sankey_diagram_app.sankey_diagram.showLegend">true</option>
+        <option name="sankey_diagram_app.sankey_diagram.showSelf">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.showTooltip">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.styleBackwards">false</option>
+        <option name="sankey_diagram_app.sankey_diagram.useColors">true</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Top Tags (+)</title>
+      <chart>
+        <search base="base_search">
+          <query>
+            | stats count by tag 
+            | sort -count
+            | eventstats avg(count) AS avgCount 
+            | where count &gt; (avgCount /3)
+            | fields tag count
+          </query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">45</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="height">385</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"count":0x555555}</option>
+        <drilldown>
+          <set token="pos">$click.value$</set>
+          <set token="pos_hidden">TRUE</set>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$show_pos$">
+      <title>Top Named Entities (+)</title>
+      <table>
+        <search base="base_search" id="pos_counts">
+          <query>
+          | eval ne = mvzip(tag,'text',",")
+          | eval ne = mvfilter(match(ne,"$pos_tag$,"))
+          | eval ne = mvfilter(!match(ne,"$stopwords$")) 
+          | rex field=ne mode=sed "s/[^,]+,([A-Za-z]+)/\1/"
+          | stats count by ne
+          | sort -count
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#555" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <set token="specific_word">$row.ne$</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$show_ne$">
+      <title>Top Named Entities (+)</title>
+      <table>
+        <search base="base_search" id="ne_counts">
+          <query>
+          | eval ne = mvzip(tag,'text',",")
+          | eval ne = mvfilter(match(ne,"$ne_tag$,"))
+          | eval ne = mvfilter(!match(ne,"$stopwords$")) 
+          | rex field=ne mode=sed "s/[^,]+,([A-Za-z]+)/\1/"
+          | stats count by ne
+          | sort -count
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#555" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <set token="specific_word">$row.ne$</set>
+          <set token="word_hidden">TRUE</set>
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$show_pos$">
+      <title>Named Entities Cloud</title>
+      <input type="dropdown" token="pos_count" searchWhenChanged="true">
+        <label># Entities</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>25</default>
+        <initialValue>25</initialValue>
+      </input>
+      <viz type="wordcloud_app.wordcloud">
+        <search base="pos_counts">
+          <query> 
+            | head $pos_count$
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#9C1E5D</option>
+        <option name="wordcloud_app.wordcloud.minColor">#9C9C1E</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">8</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+        <option name="height">350</option>
+      </viz>
+    </panel>
+    <panel depends="$show_ne$">
+      <title>Named Entities Cloud</title>
+      <input type="dropdown" token="ne_count" searchWhenChanged="true">
+        <label># Entities</label>
+        <choice value="25">25</choice>
+        <choice value="50">50</choice>
+        <choice value="100">100</choice>
+        <choice value="200">200</choice>
+        <default>25</default>
+        <initialValue>25</initialValue>
+      </input>
+      <viz type="wordcloud_app.wordcloud">
+        <search base="ne_counts">
+          <query> 
+            | head $ne_count$
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="wordcloud_app.wordcloud.alignmentMode">horizontal</option>
+        <option name="wordcloud_app.wordcloud.backgroundColor">#fff</option>
+        <option name="wordcloud_app.wordcloud.colorBy">colorMode</option>
+        <option name="wordcloud_app.wordcloud.colorMode">categorical</option>
+        <option name="wordcloud_app.wordcloud.maxColor">#9C1E5D</option>
+        <option name="wordcloud_app.wordcloud.minColor">#9C9C1E</option>
+        <option name="wordcloud_app.wordcloud.numOfBins">8</option>
+        <option name="wordcloud_app.wordcloud.splunkTastic">false</option>
+        <option name="wordcloud_app.wordcloud.useColors">true</option>
+        <option name="height">350</option>
+      </viz>
+    </panel>
+  </row>
+</form>

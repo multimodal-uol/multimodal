@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<nav color="##FA8072" search_view="search">
+  <view default="true" name="welcome"/>
+  <view name="generate"/>
+  <view name="imagegenerate"/>
+  <view name="exploretweets"/>
+  <view name="explore_newspapers"/>
+  <view name="counts"/>
+  <view name="named_entity_themes"/>
+  <view name="sentiment"/>
+  <view name="twittermetadata"/>
+  <view name="cluster_themes"/>
+  <view name="classification"/>
+  <view name="similarity"/>
+  <view name="youtubeinfo"/>
+  <view name="youtubeimage"/>
+  <view name="search"/>
+  <view name="classification_test"/>
+</nav>

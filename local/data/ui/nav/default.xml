@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<nav color="##FA8072" search_view="search">
+  <view default="true" name="welcome"/>
+  <collection label="1. Generate data">
+    <view name="generate"/> 
+    <view name="imagegenerate"/>
+    <view name="generate_news_image"/>
+    <view name="generate_covid_media"/>
+  </collection>
+  <collection label="2. Explore data">
+    <view name="exploretweets"/>
+    <view name="explore_newspapers"/>
+    <view name="explore_covid_website"/>
+  </collection>
+  <view name="counts"/>
+  <view name="named_entity_themes"/>
+  <collection label="5. Sentiment analysis">
+    <view name="sentiment"/>
+    <view name="Sentiment_Dictionary"/>
+  </collection> 
+  <view name="twittermetadata"/>
+  <view name="cluster_themes"/>
+  <collection label="8. Classification">
+    <view name="Newspaper_Classification"/>
+    <view name="Twitter_Classification"/>
+  </collection>
+   <collection label="9. Topic Modeling">
+    <view name="Topic_Model_Explore_Data"/>
+    <view name="Topic_Model_Select_number"/>
+    <view name="Topic_Model_Generate_Report"/>
+  </collection>
+  <collection label="10. Video Analysis">
+    <view name="Scene_Detection"/>
+  </collection>
+  <!--<view name="classification"/>-->
+  <view name="similarity"/>
+  <view name="search"/>  
+ <!-- <view name="youtubeinfo"/>-->
+  <!--<view name="youtubeimage"/>-->
+</nav>
