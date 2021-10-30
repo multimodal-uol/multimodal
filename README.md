@@ -2,7 +2,6 @@
 <h3 align="left">Multimodal Analytics Platform</h3>
 
   <p align="left">
-    <br />
 The project collects data from Twitter, several UK newspapers and COVID websites (WHO, NHS etc), analyzes them to create interactive reports.
 
 The platform is very easy to use. For Explore pages (#2) click submit to see results with default selections. For other pages select "Text" radio button and click submit.
@@ -25,7 +24,7 @@ Users explicitly generate data from Twitter using keyword searches and user prof
 <!-- CONTACT -->
 ## Contact
 
-Gautam Pal - 
- - gautam.pal@liverpool.ac.uk
+Gautam Pal
+ -gautam.pal@liverpool.ac.uk
 
 
