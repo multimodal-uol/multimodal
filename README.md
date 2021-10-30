@@ -24,7 +24,7 @@ Users explicitly generate data from Twitter using keyword searches and user prof
 <!-- CONTACT -->
 ## Contact
 
-Gautam Pal
- -gautam.pal@liverpool.ac.uk
+Gautam Pal <br />
+ Email: gautam.pal@liverpool.ac.uk
 
 
