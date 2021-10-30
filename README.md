@@ -1,7 +1,7 @@
 <div id="top"></div>
 <h3 align="center">Multimodal Analytics Platform</h3>
 
-  <p align="center">
+  <p align="left">
     project_description
     <br />
 The project collects data from Twitter, several UK newspapers and COVID websites (WHO, NHS etc), analyzes them to create interactive reports.
