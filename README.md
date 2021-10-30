@@ -1,5 +1,5 @@
 <div id="top"></div>
-<h3 align="center">Multimodal Analytics Platform</h3>
+<h3 align="left">Multimodal Analytics Platform</h3>
 
   <p align="left">
     <br />
@@ -14,10 +14,10 @@ Users explicitly generate data from Twitter using keyword searches and user prof
 
 ### Built With
 
-*Splunk
-*Python
-*JavaScript
-*Clarifai
+*Splunk <br />
+*Python <br />
+*JavaScript  <br />
+*Clarifai  <br />
 
 
 
