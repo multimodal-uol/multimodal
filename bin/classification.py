@@ -2,7 +2,7 @@
 """
 Created on Wed Aug 12 09:46:21 2020
 
-@author: sgmjin2
+@author: gautam.pal
 """
 import sys
 import re
@@ -108,6 +108,15 @@ def get_multi_input(clean_text):
 
 @Configuration(local=True)
 class Classification(StreamingCommand):
+    """ 
+    ## Description
+    joint predictive analytics method by the multimodal integration of (i) textual features modelled by the Long short-term memory (LSTM), a     class of artificial recurrent neural network (ii) visual features modelled by the Convolutional neural network (CNN), and (iii)             numerical features such as sentiment polarity, subjectivity of the text, and word length.
+    
+    ## Syntax
+    
+    | classification textfield=Summary model=LSTM_Simple.h5 text_weight=50 
+     """
+    
     textfield = Option(
         require=True,
         doc='''
@@ -135,6 +144,10 @@ class Classification(StreamingCommand):
             if(self.model=='avg_vec.mdl'):     
                 #load the model
                 Model=load_obj(os.path.join(os.getcwd(),'models',self.model))
+                """
+                Word embedding creates a dimensional reduced numerical dense vector representation of each word term taking into 
+                consideration of sequence as they appear in the corpus and the context. 
+                """
                 #load the word embedding
                 word2vec_path = "GoogleNews-vectors-negative300.bin.gz"
                 word2vec = gensim.models.KeyedVectors.load_word2vec_format(word2vec_path, binary=True,limit=500000)
@@ -161,6 +174,12 @@ class Classification(StreamingCommand):
                     if(self.model=='LSTM_Simple.h5'):
                         res=Model.predict(input_data)
                     else:
+                        """
+                        The multimodal ensemble process is further enhanced with an additional modality as textual metadata which considers 
+                        three types of numerical features: sentiment polarity, subjectivity, and word count. Sentiment polarity ranges be- 
+                        tween -1.0 (extremely negative) to +1.0 (extremely positive) while subjectivity score is a floating score that spans 
+                        between 0.0 (very objective) and 1.0 (very subjective). 
+                        """
                         polarity=polarity_txt(clean_text)
                         subj=subj_txt(clean_text)
                         length=len_text(clean_text)
@@ -191,6 +210,9 @@ class Classification(StreamingCommand):
                     tokenizer = RegexpTokenizer(r'\w+')
                     
                     words_text=tokenizer.tokenize(clean_text)
+                    """
+                    visual features (images and videos) are converted into linguistic word annotations using Clarifai.
+                    """
                     words_image=tokenizer.tokenize(clean_image)
                     
                     average_vec_text=get_average_word2vec(words_text,word2vec)
@@ -234,7 +256,12 @@ class Classification(StreamingCommand):
                         
                         confidence_text=Model.predict([input_data_text[0].reshape(1,60),df_text])
                         confidence_image=Model.predict([input_data_image[0].reshape(1,60),df_image])
-                        
+                    """
+                    Classification outcomes from textual and visual features produce a confidence score for each of the classification 
+                    labels. Also, the user selects appropriate weights for the language and visual features from the interface . The 
+                    confidence score for each classification label is multiplied with the user-selected weight for text and associated 
+                    visuals. Language and visual scores are added together to predict a new classification label.
+                    """
                     confidence_combined = self.text_weight / 100.0 * confidence_text + (100.0 - self.text_weight) / 100.0 * confidence_image
                     record['Text_Predict']=labels[np.argmax(confidence_text)]
                     record['Image_Predict']=labels[np.argmax(confidence_image)]
